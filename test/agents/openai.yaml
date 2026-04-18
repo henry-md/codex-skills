@@ -1,0 +1,6 @@
+interface:
+  display_name: "Test"
+  short_description: "Verify custom skill discovery"
+  default_prompt: "Use $test to verify that my custom skill is installed correctly."
+policy:
+  allow_implicit_invocation: false

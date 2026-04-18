@@ -1,0 +1,6 @@
+interface:
+  display_name: "See"
+  short_description: "Show the raw contents of a skill file"
+  default_prompt: "Use $see test to show me the exact contents of the test skill, or use $see alone to inspect the last skill created in this conversation."
+policy:
+  allow_implicit_invocation: false

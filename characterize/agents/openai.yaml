@@ -1,0 +1,4 @@
+interface:
+  display_name: "Characterize"
+  short_description: "Group working tree changes into logical buckets"
+  default_prompt: "Review the current repository changes and group them into coherent buckets before I stage or commit anything."

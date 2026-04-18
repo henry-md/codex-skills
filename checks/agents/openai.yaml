@@ -1,0 +1,4 @@
+interface:
+  display_name: "Checks"
+  short_description: "Iterate until the UI matches spec"
+  default_prompt: "Use $checks to keep visiting the target page, editing the code, and looping until the screenshot matches the user request or a real blocker remains."

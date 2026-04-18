@@ -1,0 +1,15 @@
+# macOS filesystem metadata
+.DS_Store
+**/.DS_Store
+
+# Python bytecode and caches
+**/__pycache__/
+**/*.py[cod]
+
+# Vim swap files
+**/*.swp
+**/*.swo
+
+# check skill runtime artifacts
+# This tree stores per-repo config, notes, screenshots, and auth/session state.
+check/repos/

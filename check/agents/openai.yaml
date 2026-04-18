@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check"
+  short_description: "Capture Henry-authenticated screenshots"
+  default_prompt: "Use $check to open the right page from the Henry account perspective and verify the rendered result with a real screenshot."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Steal"
+  short_description: "Sync Claude and Codex skill parity"
+  default_prompt: "Compare ~/.claude/skills with ~/.codex/skills, create any missing counterparts, then inspect matching SKILL.md files and update whichever side lags in functionality. Ask the user only if it is genuinely unclear which version is better."

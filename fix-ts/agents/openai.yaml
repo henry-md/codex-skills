@@ -1,0 +1,6 @@
+interface:
+  display_name: "Fix TS"
+  short_description: "Clean up TypeScript and lint failures"
+  default_prompt: "Use $fix-ts to run a thorough TypeScript cleanup pass, starting with compiler errors and then the highest-value lint fixes."
+policy:
+  allow_implicit_invocation: false
