@@ -1,0 +1,4 @@
+interface:
+  display_name: "Characterize Codex"
+  short_description: "Auto-publish ~/.codex/skills changes"
+  default_prompt: "Use $characterize-codex to go to ~/.codex/skills, treat that git repo as the only target even if the current chat is elsewhere, group its diff into coherent commit buckets, then automatically commit and push anything there that is not already pushed."
