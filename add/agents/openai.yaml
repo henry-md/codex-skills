@@ -1,6 +1,6 @@
 interface:
   display_name: "Add"
-  short_description: "Rebuild staged set for this chat"
-  default_prompt: "Use $add to first clear any existing staged changes, then stage only the changes that belong to this conversation while leaving unrelated work unstaged. If the user invoked `/add push`, commit those staged changes with the generated message and push them."
+  short_description: "Stage chat-scoped work on main"
+  default_prompt: "Use $add to first clear any existing staged changes, then stage only the changes that belong to this conversation while leaving unrelated work unstaged. In `/add push`, include only the minimum already-modified diff required for a successful Railway build, split into multiple commits if the chat-scoped diff is over roughly 500 lines and clearly separable, and push `main` directly while checked out on `main`."
 policy:
   allow_implicit_invocation: false
