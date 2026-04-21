@@ -1,6 +1,6 @@
 ---
 name: characterize
-description: Reviews all staged, unstaged, and untracked changes in the working tree and groups them into logical buckets that likely belong in separate commits or parallel tasks. Use when the user wants to understand a dirty tree before staging or committing, split local changes into coherent chunks, or explicitly asks for an `auto` mode that stages, commits, and pushes each bucket in sequence.
+description: Reviews all staged, unstaged, and untracked changes in the working tree and groups them into logical buckets that likely belong in separate commits or parallel tasks. Use when the user wants to understand a dirty tree before staging or committing, split local changes into coherent chunks, or explicitly asks for a `push` mode that stages, commits, and pushes each bucket in sequence.
 ---
 
 # Characterize
@@ -10,7 +10,7 @@ Review the current working tree and explain how its changes cluster into coheren
 ## Arguments
 
 - Default: characterize the working tree and stop.
-- `auto`: characterize first, then stage, commit, and push each bucket in order without waiting for another prompt.
+- `push`: characterize first, then stage, commit, and push each bucket in order without waiting for another prompt.
 
 ## What to do
 
@@ -27,8 +27,8 @@ Review the current working tree and explain how its changes cluster into coheren
    - the files that belong to it
    - a `3-5` sentence plain-English summary of what changed and why
    - one conventional-commit style message
-10. If the user did not ask for `auto`, stop after presenting the buckets.
-11. If the user asked for `auto`, run the workflow below for each bucket in order.
+10. If the user did not ask for `push`, stop after presenting the buckets.
+11. If the user asked for `push`, run the workflow below for each bucket in order.
 
 ## Resist Over-Splitting
 
@@ -50,7 +50,7 @@ Commit: `feat(scope): short description`
 
 After listing all buckets, end with one short sentence telling the user they can refer to a bucket by its label in the next prompt if they want help staging or committing it.
 
-## Auto Mode Workflow
+## Push Mode Workflow
 
 Process buckets one at a time in the order listed:
 
@@ -64,6 +64,6 @@ If any step fails, stop immediately and report the error. Do not continue to lat
 
 ## Constraints
 
-- Do not stage, commit, or push anything unless the user explicitly asked for `auto`.
+- Do not stage, commit, or push anything unless the user explicitly asked for `push`.
 - Never use broad staging commands such as `git add .` or `git add -A`.
 - Prefer coherent buckets over many tiny ones.

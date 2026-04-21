@@ -1,6 +1,6 @@
 ---
 name: characterize-codex
-description: Reviews the git repo at `/Users/Henry/.codex/skills` (`~/.codex/skills`), groups its staged, unstaged, and untracked changes into coherent commit buckets, and automatically stages, commits, and pushes anything there that is not already pushed. Use when the user explicitly invokes `characterize-codex` to publish Codex skill changes from the skills repo rather than from the current working directory. This skill assumes `~/.codex/skills` has its own `.git` directory and may be invoked while the current chat is sitting in some other project.
+description: Reviews the git repo at `/Users/Henry/.codex/skills` (`~/.codex/skills`), groups its staged, unstaged, and untracked changes into coherent commit buckets, then stages, commits, and pushes anything there that is not already pushed. Use when the user explicitly invokes `characterize-codex` to publish Codex skill changes from the skills repo rather than from the current working directory. This skill assumes `~/.codex/skills` has its own `.git` directory and may be invoked while the current chat is sitting in some other project.
 ---
 
 # Characterize Codex
@@ -15,7 +15,7 @@ This skill will probably be invoked while the current working directory is some 
 
 - Any explicit invocation of `characterize-codex` is permission to stage, commit, and push changes in `/Users/Henry/.codex/skills`.
 - Do not ask for a second confirmation before committing or pushing. The command itself is permission enough.
-- There is no separate `auto` mode. This skill is always auto.
+- There is no separate `push` mode. This skill always stages, commits, and pushes when explicitly invoked.
 - Work only inside the currently checked out branch of `/Users/Henry/.codex/skills`. Do not create or switch branches as part of this skill.
 - If the skills repo already has local commits that are ahead of upstream, push them too.
 
@@ -51,7 +51,7 @@ The common failure mode is over-splitting one skill change into too many commits
 
 Several edits inside one skill folder usually belong together, including `SKILL.md` and `agents/openai.yaml`. A new skill plus a small fix to some other existing skill usually deserves two buckets. Split work when the commit messages would naturally describe different user-visible changes, not just because the diff is large.
 
-## Auto Publish Workflow
+## Push Publish Workflow
 
 Process buckets one at a time in the order listed:
 
