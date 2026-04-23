@@ -1,67 +1,46 @@
 ---
 name: characterize-codex
-description: Reviews the git repo at `/Users/Henry/.codex/skills` (`~/.codex/skills`), groups its staged, unstaged, and untracked changes into coherent commit buckets, then stages, commits, and pushes anything there that is not already pushed. Use when the user explicitly invokes `characterize-codex` to publish Codex skill changes from the skills repo rather than from the current working directory. This skill assumes `~/.codex/skills` has its own `.git` directory and may be invoked while the current chat is sitting in some other project.
+description: Applies the `characterize` push workflow to the fixed git repo at `/Users/Henry/.codex/skills` (`~/.codex/skills`) so Codex skill changes are grouped into safe commit buckets, committed locally, verified as a stack, and pushed once. Use when the user explicitly invokes `characterize-codex` to publish Codex skill changes from the skills repo rather than from the current working directory.
 ---
 
 # Characterize Codex
 
-Use this skill to characterize and publish work in `/Users/Henry/.codex/skills`, not in the repo for the current chat.
+Publish changes from `/Users/Henry/.codex/skills`, regardless of the caller's current working directory.
 
-`/Users/Henry/.codex/skills` is the intended target repo and it has its own `.git` directory. Treat that path as the only repo this skill may inspect, stage, commit, or push.
+This skill is a thin wrapper around `/Users/Henry/.codex/skills/characterize/SKILL.md`. Before grouping, staging, committing, or pushing, open that file and apply its `push` workflow as the source of truth for bucketing, changed-line accounting, the `2000` line rule, the generated-file exception, commit-message validation, stack verification, output format, and push-once behavior.
 
-This skill will probably be invoked while the current working directory is some other project. That is expected. Navigate to `/Users/Henry/.codex/skills` first or use `git -C /Users/Henry/.codex/skills ...` for every git command. Never make commits in the caller's current directory unless that directory is already `/Users/Henry/.codex/skills`.
+This skill only overrides the target repo, permission model, branch handling, and skills-repo-specific bucketing hints below. If shared workflow guidance here ever conflicts with `characterize`, follow `characterize`. If repo-safety guidance here conflicts with anything else, follow this skill.
 
 ## Invocation Behavior
 
-- Any explicit invocation of `characterize-codex` is permission to stage, commit, and push changes in `/Users/Henry/.codex/skills`.
+- Any explicit invocation of `characterize-codex` is permission to run `characterize` in `push` mode for `/Users/Henry/.codex/skills`.
 - Do not ask for a second confirmation before committing or pushing. The command itself is permission enough.
-- There is no separate `push` mode. This skill always stages, commits, and pushes when explicitly invoked.
 - Work only inside the currently checked out branch of `/Users/Henry/.codex/skills`. Do not create or switch branches as part of this skill.
-- If the skills repo already has local commits that are ahead of upstream, push them too.
+- If the skills repo already has local commits ahead of upstream, include them in the final stack verification and push them too.
 
 ## Fixed Repo Rule
 
 1. Set the target repo to `/Users/Henry/.codex/skills`.
 2. Run `git -C /Users/Henry/.codex/skills rev-parse --show-toplevel` and verify it resolves to exactly `/Users/Henry/.codex/skills`.
 3. Run `git -C /Users/Henry/.codex/skills branch --show-current` and ensure the result is a normal branch name. Stop if the repo is missing or in detached HEAD.
-4. Never run bare `git add`, `git commit`, or `git push` against the caller's current directory unless that directory is already `/Users/Henry/.codex/skills`.
-5. Never characterize, stage, commit, or push the current project just because the user invoked this skill from there.
+4. Use `git -C /Users/Henry/.codex/skills ...` for every git command unless the current shell is already in `/Users/Henry/.codex/skills`.
+5. Never characterize, stage, commit, or push the caller's current project just because the user invoked this skill from there.
 
 ## What To Do
 
-1. Run `git -C /Users/Henry/.codex/skills fetch --all --prune`.
-2. Read Codex's local thread index before grouping changes. Use `~/.codex/state_5.sqlite` as the source of truth for unarchived chats and query the `threads` table for rows where `archived = 0` and `cwd = '/Users/Henry/.codex/skills'`, ordered by `updated_at_ms DESC`. Read the `title` and `rollout_path` columns from that query.
-3. For each returned chat, open the JSONL transcript at `rollout_path` and skim for gist rather than reading every token. Prefer the main user asks, major assistant conclusions, and any clear skill names or workflow labels.
-4. If `~/.codex/state_5.sqlite` is unavailable, fall back to `~/.codex/session_index.jsonl` for titles and `~/.codex/sessions/` for active transcript files, but still scope the search to `/Users/Henry/.codex/skills`.
-5. Run `git -C /Users/Henry/.codex/skills status --short --branch`, `git -C /Users/Henry/.codex/skills diff HEAD`, and `git -C /Users/Henry/.codex/skills ls-files --others --exclude-standard`.
-6. If the branch has an upstream, inspect what is already not pushed with `git -C /Users/Henry/.codex/skills log --oneline @{upstream}..HEAD`.
-7. Group the uncommitted work into however many buckets the diff genuinely calls for. Use the skills-repo chats as one signal, not a quota.
-8. For each bucket, write:
-   - a short label in kebab-case
-   - the files that belong to it
-   - a short plain-English summary of what changed and why
-   - one conventional-commit style message
-9. Show the bucket plan briefly, then execute it immediately without waiting for another prompt.
-10. If there are no uncommitted changes and no local commits ahead of upstream, say the skills repo is already fully pushed and stop.
-11. If there are no uncommitted changes but the branch is ahead of upstream, skip straight to pushing the existing local commits.
+1. Open `/Users/Henry/.codex/skills/characterize/SKILL.md` and treat its `push` mode as the shared workflow to execute.
+2. Run `git -C /Users/Henry/.codex/skills fetch --all --prune`.
+3. Follow `characterize`'s discovery and bucketing process with `/Users/Henry/.codex/skills` as `<repo_root>`. When querying Codex's local thread index, use rows where `cwd = '/Users/Henry/.codex/skills'`.
+4. Translate every git command from `characterize` to the target repo by adding `-C /Users/Henry/.codex/skills`.
+5. Show the bucket plan, then execute it immediately using the `characterize` push workflow without waiting for another prompt.
+6. If there are no uncommitted changes and no local commits ahead of upstream, say the skills repo is already fully pushed and stop.
+7. If there are no uncommitted changes but the branch is ahead of upstream, skip local commit creation, run the final stack verification from `characterize`, then push once.
 
-## Bucketing Guidance
+## Skills Repo Bucketing Hint
 
-The common failure mode is over-splitting one skill change into too many commits. Prefer one bucket per skill or per tightly coupled workflow change.
+Prefer one bucket per skill or per tightly coupled workflow change. Edits inside one skill folder usually belong together, including `SKILL.md` and `agents/openai.yaml`, unless `characterize`'s sizing or cohesion rules require a split.
 
-Several edits inside one skill folder usually belong together, including `SKILL.md` and `agents/openai.yaml`. A new skill plus a small fix to some other existing skill usually deserves two buckets. Split work when the commit messages would naturally describe different user-visible changes, not just because the diff is large.
-
-## Push Publish Workflow
-
-Process buckets one at a time in the order listed:
-
-1. Run `git -C /Users/Henry/.codex/skills restore --staged .` to clear the index.
-2. Stage only that bucket's files with targeted `git -C /Users/Henry/.codex/skills add <path>` commands. Use `git -C /Users/Henry/.codex/skills add -p <path>` when only part of a file belongs to the bucket.
-3. Commit with the bucket's suggested commit message using `git -C /Users/Henry/.codex/skills commit -m "<message>"`.
-4. Push the current branch with `git -C /Users/Henry/.codex/skills push`.
-5. Report the commit hash and push result before moving to the next bucket.
-
-After all new buckets are committed, if the branch is still ahead of upstream for any reason, push again so everything local that is not already pushed is published.
+A new skill plus a small fix to an existing skill usually deserves separate buckets. Split work when commit messages would naturally describe different user-visible skill changes.
 
 ## Constraints
 
@@ -69,16 +48,4 @@ After all new buckets are committed, if the branch is still ahead of upstream fo
 - Never use broad staging commands such as `git add .` or `git add -A`.
 - Never ask for permission to commit or push once this skill has been explicitly invoked.
 - Never create or switch branches as part of this skill.
-- Stop immediately on the first staging, commit, or push failure and report the blocker clearly.
-
-## Output Format
-
-For each bucket:
-
-**[Bucket name]**
-Label: `bucket-label`
-[2-4 sentences describing what changed and why.]
-Files: `path/a`, `path/b`
-Commit: `feat(scope): short description`
-
-After that, continue straight into execution updates and end with the commit hashes and push results.
+- Stop immediately on the first discovery, staging, commit, validation, or push failure and report the blocker clearly.
