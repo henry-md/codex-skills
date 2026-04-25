@@ -12,24 +12,39 @@ Review the current working tree and explain how its changes cluster into coheren
 - Default: characterize the working tree and stop.
 - `push`: characterize first, then stage and commit each bucket locally, verify the full commit stack, and push once without waiting for another prompt.
 
+When the user later says something like "commit all these and push" after a non-`push` characterize run, treat that as entering the same `push` workflow below. Do not infer permission to change branches from that follow-up alone.
+
 ## What to do
 
 1. Run `git rev-parse --show-toplevel` and treat that path as the current repo root.
-2. Read Codex's local thread index before grouping changes. Use `~/.codex/state_5.sqlite` as the source of truth for unarchived chats and query the `threads` table for rows where `archived = 0` and `cwd = <repo_root>`, ordered by `updated_at_ms DESC`. Read the `title` and `rollout_path` columns from that query.
-3. For each returned chat, open the JSONL transcript at `rollout_path`. These are typically under `~/.codex/sessions/...`. Skim for gist rather than reading every token: prefer the main user asks, major assistant conclusions, and any clear feature names or bug labels. Use the split between chats as one input into how the working tree should be bucketed.
-4. If `~/.codex/state_5.sqlite` is unavailable, fall back to `~/.codex/session_index.jsonl` for titles and `~/.codex/sessions/` for active transcript files, but prefer the SQLite query whenever possible because it gives the clean unarchived set for the current repo.
+2. Use `$check-codex-tabs` scoped to the repo root to identify the current repo's non-archived Codex tabs and their status. Treat that skill as the source of truth for which tabs are still active versus already closed.
+3. Keep only the tabs that `$check-codex-tabs` reports as closed but still unarchived. Exclude every tab it reports as active or otherwise in-flight. Do not let active tabs influence bucketing, staging, commit planning, or file ownership.
+4. For each remaining closed tab, open the linked transcript and skim for gist rather than reading every token: prefer the main user asks, major assistant conclusions, and any clear feature names or bug labels. Use those closed tabs as one input into how the working tree should be bucketed.
 5. Run `git status --short`, `git diff --stat`, `git diff --numstat`, and `git diff HEAD` to capture staged, unstaged, and untracked changes. Use stats first to understand size and shape, then inspect hunks selectively for intent.
 6. Calculate changed lines as insertions plus deletions from `git diff --numstat` or `git diff --cached --shortstat`. Treat binary files as separate noted artifacts, not line-count evidence.
 7. Group the work into however many buckets the changes genuinely call for. Do not aim for a target count just because the skill asked for one. One bucket is fine when the work is tightly coupled. There is no maximum bucket count; create as many buckets as needed for each bucket to tell one honest, reviewable story.
-8. Let the chats influence the split when they reflect genuinely separate streams of work, but do not overfit to thread boundaries when the code changes are tightly coupled and belong in one commit. Active chats are a useful signal, not a quota.
+8. Let the closed tabs influence the split when they reflect genuinely separate streams of work, but do not overfit to thread boundaries when the code changes are tightly coupled and belong in one commit. If a change appears tied only to an active tab, leave it out of the characterized buckets and call out that it was intentionally left alone because it is still in flight.
 9. For each bucket, provide:
    - a short label in kebab-case
    - the files that belong to it
    - the estimated changed-line count
    - a `3-5` sentence plain-English summary of what changed and why
    - one conventional-commit style message
-10. If the user did not ask for `push`, stop after presenting the buckets.
-11. If the user asked for `push`, run the workflow below for each bucket in order.
+10. If any changed files were intentionally left out because they appear to belong to active tabs, say so briefly after the bucket list.
+11. If the user did not ask for `push`, stop after presenting the buckets.
+12. If the user asked for `push`, run the workflow below for each bucket in order.
+
+## Branch Safety
+
+Branch handling must be explicit and conservative:
+
+1. Before the first commit in push mode, run `git branch --show-current` and `git status --short --branch`.
+2. The currently checked out branch is the commit target and the push target by default. Stay on that branch unless the user explicitly asks to create, switch to, or push a different branch.
+3. Never create a new branch proactively for safety, cleanliness, reviewability, or personal preference. If the user is on `main`, then by default you commit on `main` and push `main`.
+4. Never reinterpret ambiguous wording as branch permission. Phrases like "off main", "working off main", "based on main", or "from main" are ambiguous. Do not act on them silently. Restate the exact branch name using the words "on branch `<name>`" and "push `<name>`" before you commit.
+5. In the first push-mode progress update, say exactly which branch you are on and exactly which branch you will push. Example: `I'm on branch main and will commit these buckets on main, then push main.`
+6. If the user explicitly asks a branch question and there is any ambiguity, answer with the literal current branch name and your exact intended push target. Do not answer with loose phrasing like "working off main" or "off main".
+7. If you realize you misread the user's branch intent before pushing, stop and ask instead of inventing a recovery path. Do not quietly move commits to another branch to be "safer".
 
 ## Resist Over-Splitting
 
@@ -62,16 +77,17 @@ Before the first commit, write a concise bucket plan that includes each bucket's
 
 Create all commits locally first, then verify the whole stack before pushing:
 
-1. Run `git restore --staged .` to clear the index.
-2. Stage only that bucket's files with targeted `git add <path>` commands. Use `git add -p <path>` when only part of a file belongs to the bucket.
-3. Run `git diff --cached --stat`, `git diff --cached --numstat`, and `git diff --cached --shortstat`. Confirm the staged files and changed-line count match one coherent bucket. If the staged diff is over `2000` changed lines and does not meet the generated-file exception above, stop and split the bucket before committing.
-4. Commit with the bucket's suggested commit message.
-5. Run `git show --stat --oneline HEAD` and confirm the commit title honestly describes the whole staged diff, not just the smallest or most recent fix inside it. If the title is misleading, amend before pushing.
-6. Repeat steps 1-5 for every bucket. Do not push between buckets.
-7. After all commits are created, run `git status --short`, `git log --oneline --stat <base>..HEAD`, and whatever validation commands are appropriate for the changed areas.
-8. Confirm every commit still satisfies the `2000` line rule or generated-file exception, every title matches its diff, and the working tree has no accidental leftovers. If anything is wrong, fix the local commits before pushing.
-9. Push once with `git push`.
-10. Report the commit hashes, validation result, and push result.
+1. Run `git branch --show-current` and `git status --short --branch`. State the exact current branch and exact push target in plain language before you stage anything.
+2. Run `git restore --staged .` to clear the index.
+3. Stage only that bucket's files with targeted `git add <path>` commands. Use `git add -p <path>` when only part of a file belongs to the bucket.
+4. Run `git diff --cached --stat`, `git diff --cached --numstat`, and `git diff --cached --shortstat`. Confirm the staged files and changed-line count match one coherent bucket. If the staged diff is over `2000` changed lines and does not meet the generated-file exception above, stop and split the bucket before committing.
+5. Commit with the bucket's suggested commit message.
+6. Run `git show --stat --oneline HEAD` and confirm the commit title honestly describes the whole staged diff, not just the smallest or most recent fix inside it. If the title is misleading, amend before pushing.
+7. Repeat steps 2-6 for every bucket. Do not push between buckets.
+8. After all commits are created, run `git branch --show-current`, `git status --short`, `git log --oneline --stat <base>..HEAD`, and whatever validation commands are appropriate for the changed areas.
+9. Confirm every commit still satisfies the `2000` line rule or generated-file exception, every title matches its diff, the working tree has no accidental leftovers, and the current branch still matches the branch you told the user you would push. If anything is wrong, fix the local commits before pushing.
+10. Push once with `git push` to the branch you explicitly named earlier. Do not switch branches right before pushing unless the user explicitly asked for that branch change.
+11. Report the branch pushed, commit hashes, validation result, and push result.
 
 If any step fails, stop immediately and report the error. Do not continue to later buckets.
 
@@ -80,3 +96,5 @@ If any step fails, stop immediately and report the error. Do not continue to lat
 - Do not stage, commit, or push anything unless the user explicitly asked for `push`.
 - Never use broad staging commands such as `git add .` or `git add -A`.
 - Prefer coherent buckets over many tiny ones.
+- Do not create, switch, or push a different branch unless the user explicitly asked for that branch behavior.
+- Never include work from tabs that `$check-codex-tabs` reports as active or otherwise in flight.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check Codex Tabs"
+  short_description: "Inspect local Codex tab activity"
+  default_prompt: "Use $check-codex-tabs to inspect my local Codex state and tell me which tabs are still active."
