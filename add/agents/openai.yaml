@@ -1,6 +1,6 @@
 interface:
   display_name: "Add"
-  short_description: "Stage chat-scoped work on main"
-  default_prompt: "Use $add to rebuild the staged set for this conversation only. In `/add push`, commit only that chat-scoped work plus the minimum already-modified Railway-build-critical diff, prefer commit slices around 500 changed lines, never push a commit over 2,000 changed lines, and push `main` only while checked out on `main`."
+  short_description: "Stage chat-scoped work on main and verify Railway"
+  default_prompt: "Use $add to rebuild the staged set for this conversation only. In `/add push`, commit only that chat-scoped work plus the minimum already-modified Railway-build-critical diff, prefer commit slices around 500 changed lines, never push a commit over 2,000 changed lines, push `main` only while checked out on `main`, then watch the resulting Railway deployment. If Railway fails for a generated or build-support artifact reason that can be fixed without editing developer-authored source files, regenerate the needed artifacts, amend the just-pushed commit, and force-push with lease instead of creating a separate fix commit."
 policy:
   allow_implicit_invocation: false
