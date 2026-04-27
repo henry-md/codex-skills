@@ -12,6 +12,9 @@ Use this skill when one screenshot is not enough and the job is to keep iteratin
 1. Start from the existing `$check` workflow.
    Open [SKILL.md](/Users/Henry/.codex/skills/check/SKILL.md) and reuse its auth, route-resolution, and screenshot capture flow instead of rebuilding it.
    Treat `$checks` as a persistent outer loop around `$check`, not as a separate screenshot system.
+   If the repo already has a headless verification harness, that is the default loop.
+   Prefer bundled Chromium for unpacked extension verification, and use CDP while staying headless when Playwright alone cannot control the necessary extension targets.
+   Do not switch to headed just because the task is iterative.
 
 2. Resolve the target route and success criteria.
    If the user invokes `/checks /some-path`, treat that as the page route or URL to check.
@@ -35,6 +38,8 @@ Use this skill when one screenshot is not enough and the job is to keep iteratin
    Use the same target route unless the request or the product flow clearly requires another route.
    For intermediate passes, you may verify with a fresh screenshot, the full logged-in DOM, Playwright locators, native parsing, or other direct page inspection methods.
    Compare what you observe against the request again, not against your intent.
+   For extension UIs, prefer the repo's headless persistent Chromium path plus the extension page surrogate such as `chrome-extension://<extension-id>/index.html` or `options.html` unless the bug is specifically about the docked browser shell.
+   If Playwright cannot reach MV3 service workers or extension pages cleanly, use CDP target attachment and keep the loop headless.
 
 7. Repeat until one of two conditions is true.
    Stop only when a final fresh screenshot shows the requested result closely enough to satisfy the user's ask.
@@ -53,13 +58,16 @@ Use this skill when one screenshot is not enough and the job is to keep iteratin
 - Use screenshots as the source of truth for completion.
 - Do not stop after one pass just because the code looks correct.
 - Do not declare success until you have inspected a fresh screenshot from the relevant route.
+- Headless browsers are the default. Use them first, keep using them when possible, and only escalate to a headed browser when the bug is truly about browser chrome, windowing, or focus behavior that headless Chromium plus Playwright/CDP cannot expose.
+- For unpacked extension automation, prefer bundled Chromium over Google Chrome.
 - During long-running loops, do not mindlessly repeat the same check pattern; every 5-10 verification cycles, ask whether the approach itself should change.
-- Intermediate self-evaluations do not require a screenshot if the logged-in DOM or other direct inspection methods can tell you whether you are moving in the right direction.
+- Intermediate self-evaluations do not require a screenshot if the logged-in DOM, locator assertions, or other direct inspection methods can tell you whether you are moving in the right direction.
 - Prefer Henry-authenticated verification when the page is user-specific.
 - If the capture flow breaks, fix the global `$check` skill or its per-repo runtime before giving up.
 - Never refactor the product code to make tabs, views, or flows deep-linkable without the user's explicit sign-off.
 - If the route is omitted, infer it from context and proceed.
 - If several pages are plausible, choose the strongest candidate, say which one you chose, and continue.
+- If you choose headed instead of an available headless path, state the reason in your commentary so the tradeoff is explicit.
 - Keep going until the result is visibly right or you can explain concretely why the request is impossible in the current environment.
 
 ## Final Response

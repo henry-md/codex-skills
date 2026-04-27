@@ -20,7 +20,10 @@ Use this skill when the user wants proof that a page loads in a browser or wants
 
 3. Capture visual evidence with Playwright.
    Save screenshots outside the repo, normally under `/tmp/job-helper-verify-page/`.
+   Headless browser capture is the default.
    Prefer a full-page screenshot with a desktop viewport.
+   For unpacked extension verification, prefer bundled Chromium over Google Chrome because Chromium reliably honors extension-loading flags.
+   If Playwright cannot reach MV3 service workers or extension pages cleanly, use Chromium plus CDP while staying headless.
    Use `--wait-for-selector` when the page has a stable landmark worth waiting for.
 
 4. Inspect the screenshot directly after capture.
@@ -69,6 +72,7 @@ Only say the page was verified when all of these are true:
 
 - Do not treat `curl`, HTML, or build output alone as visual verification.
 - Do not claim the UI looks correct unless you inspected the screenshot.
+- Do not switch to a headed browser unless the surface truly depends on browser chrome or focus behavior that a headless browser cannot expose.
 - Do not leave a local dev server running unless the user asked for that explicitly.
 - Keep screenshots and temporary browser artifacts out of git-tracked paths unless the user asks otherwise.
 - If Playwright is missing a browser install, auth state, or another prerequisite, say exactly what is missing.

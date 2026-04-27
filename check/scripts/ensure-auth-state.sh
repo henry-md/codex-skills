@@ -3,14 +3,54 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/repo-paths.sh"
+source "$SCRIPT_DIR/check-thread-account.sh"
 CHECK_ROOT="${CHECK_ROOT:-$(check_detect_repo_root "$PWD")}"
 CHECK_CONFIG="${CHECK_CONFIG:-$(check_repo_dir "$CHECK_ROOT")/config.env}"
 export CHECK_ROOT CHECK_CONFIG
 
 "$SCRIPT_DIR/setup-check-repo.sh"
 
+CHECK_ACCOUNT_TARGET_OVERRIDE="${CHECK_ACCOUNT_TARGET-}"
+CHECK_ACCOUNT_STRATEGY_OVERRIDE="${CHECK_ACCOUNT_STRATEGY-}"
+CHECK_EMAIL_OVERRIDE="${CHECK_EMAIL-}"
+CHECK_HENRY_EMAIL_OVERRIDE="${CHECK_HENRY_EMAIL-}"
+CHECK_SESSION_KEY_OVERRIDE="${CHECK_SESSION_KEY-}"
+CHECK_STATE_FILE_OVERRIDE="${CHECK_STATE_FILE-}"
+
 # shellcheck disable=SC1090
 source "$CHECK_CONFIG"
+
+if [[ -n "${CHECK_ACCOUNT_TARGET_OVERRIDE:-}" ]]; then
+  CHECK_ACCOUNT_TARGET="$CHECK_ACCOUNT_TARGET_OVERRIDE"
+fi
+if [[ -n "${CHECK_ACCOUNT_STRATEGY_OVERRIDE:-}" ]]; then
+  CHECK_ACCOUNT_STRATEGY="$CHECK_ACCOUNT_STRATEGY_OVERRIDE"
+fi
+if [[ -n "${CHECK_EMAIL_OVERRIDE:-}" ]]; then
+  CHECK_EMAIL="$CHECK_EMAIL_OVERRIDE"
+fi
+if [[ -n "${CHECK_HENRY_EMAIL_OVERRIDE:-}" ]]; then
+  CHECK_HENRY_EMAIL="$CHECK_HENRY_EMAIL_OVERRIDE"
+fi
+if [[ -n "${CHECK_SESSION_KEY_OVERRIDE:-}" ]]; then
+  CHECK_SESSION_KEY="$CHECK_SESSION_KEY_OVERRIDE"
+fi
+if [[ -n "${CHECK_STATE_FILE_OVERRIDE:-}" ]]; then
+  CHECK_STATE_FILE="$CHECK_STATE_FILE_OVERRIDE"
+fi
+
+CHECK_REPO_DIR="${CHECK_REPO_DIR:-$(check_repo_dir "$CHECK_ROOT")}"
+CHECK_EMAIL="$(check_resolve_check_email)"
+CHECK_STATE_FILE="$(check_resolve_state_file)"
+CHECK_LOCAL_USER_AUTO_CREATE="${CHECK_LOCAL_USER_AUTO_CREATE:-$(
+  if check_uses_thread_local_account; then
+    printf '%s' "true"
+  else
+    printf '%s' "false"
+  fi
+)}"
+export CHECK_EMAIL CHECK_LOCAL_USER_AUTO_CREATE CHECK_STATE_FILE
+export CHECK_ACCOUNT_RESOLVED_NAME="$(check_resolve_account_name)"
 
 resolve_path() {
   local value="$1"
@@ -21,11 +61,8 @@ resolve_path() {
   fi
 }
 
-CHECK_REPO_DIR="${CHECK_REPO_DIR:-$(check_repo_dir "$CHECK_ROOT")}"
-CHECK_EMAIL="${CHECK_EMAIL:-henrymdeutsch@gmail.com}"
 CHECK_BASE_URL="${CHECK_BASE_URL:-http://127.0.0.1:3000}"
 CHECK_SESSION_URL="${CHECK_SESSION_URL:-$CHECK_BASE_URL/api/auth/session}"
-CHECK_STATE_FILE="${CHECK_STATE_FILE:-$CHECK_REPO_DIR/state/henry-auth.json}"
 CHECK_OUTPUT_DIR="${CHECK_OUTPUT_DIR:-$CHECK_REPO_DIR/output}"
 CHECK_AUTH_STRATEGY="${CHECK_AUTH_STRATEGY:-interactive-playwright}"
 CHECK_DATABASE_ENV_FILE="${CHECK_DATABASE_ENV_FILE:-.env}"

@@ -14,6 +14,19 @@ function requireArg(value, message) {
   return value;
 }
 
+function readBooleanEnv(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const normalizedValue = value.trim().toLowerCase();
+  return normalizedValue === "1" || normalizedValue === "true" || normalizedValue === "yes";
+}
+
+function readOptionalString(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 function buildCookie(baseUrl, sessionToken, expiresAt) {
   const parsed = new URL(baseUrl);
   const secure = parsed.protocol === "https:";
@@ -51,6 +64,9 @@ async function main() {
     process.env.DATABASE_URL,
     "DATABASE_URL is required to seed a local NextAuth session.",
   );
+  const autoCreateUser = readBooleanEnv(process.env.CHECK_LOCAL_USER_AUTO_CREATE);
+  const autoCreateName =
+    readOptionalString(process.env.CHECK_ACCOUNT_RESOLVED_NAME) ?? "Codex Check";
 
   const absoluteRepoRoot = path.resolve(repoRoot);
   const absoluteOutputPath = path.resolve(absoluteRepoRoot, outputPath);
@@ -86,15 +102,31 @@ async function main() {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { email },
+    let user = await prisma.user.findFirst({
       select: { id: true, email: true, name: true },
+      where: {
+        email: {
+          equals: email,
+          mode: "insensitive",
+        },
+      },
     });
 
     if (!user?.id) {
-      throw new Error(
-        `No local user exists for ${email}. Sign in normally once so the account is created, then retry /check.`,
-      );
+      if (!autoCreateUser) {
+        throw new Error(
+          `No local user exists for ${email}. Sign in normally once so the account is created, then retry /check.`,
+        );
+      }
+
+      user = await prisma.user.create({
+        data: {
+          email,
+          emailVerified: new Date(),
+          name: autoCreateName,
+        },
+        select: { id: true, email: true, name: true },
+      });
     }
 
     const now = new Date();
