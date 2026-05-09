@@ -9,6 +9,11 @@ Use this skill to see a page from a signed-in perspective instead of from an ano
 Default to an anonymous per-thread local account. Only connect to Henry's real account when the user explicitly asks for Henry-specific verification.
 Here, "anonymous" means a signed-in local `/check` user that is isolated from Henry's real account and from other Codex threads.
 
+## Self-Healing Bias
+
+This skill is intentionally more self-improving than the average skill. Creating and maintaining a visual/auth harness is complicated, so when a `/check` run has to figure out a reusable detail, missing setup step, auth workaround, browser harness quirk, repo pattern, or faster route to deterministic state, it is encouraged to update this skill or its repo-local helpers after the run.
+Prefer leaving the next `/check` run faster, clearer, and more seamless than the current one, while keeping product-code changes gated by the explicit sign-off rules below.
+
 ## Workflow
 
 1. Read repo-local check docs first when they exist.
@@ -48,6 +53,7 @@ Here, "anonymous" means a signed-in local `/check` user that is isolated from He
 
 7. Capture the target page with the saved auth state.
    Reuse the global `scripts/check-page.sh` helper to take a screenshot of the requested route or URL.
+   If you started a local dev server for the `/check` run, stop it before finishing unless the user explicitly asked to keep it running.
    Before doing slow browser-only setup such as repeated uploads, form typing, or modal-clicking, look for repo-local `/check` helpers that can safely pre-create deterministic test state for the anonymous account.
    Prefer doing reversible setup through repo-local helpers, direct storage writes, or first-party app APIs when that lets the browser focus on the actual proof points the user asked for.
    If the page requires extra navigation after load, extend the skill or add the smallest repo-side product change needed so the skill can perform that flow autonomously next time.
@@ -55,6 +61,7 @@ Here, "anonymous" means a signed-in local `/check` user that is isolated from He
    When responding to the user, prefer rendering the screenshot inline with Markdown image syntax using the absolute file path so the Codex desktop app shows a preview instead of just a file card.
    For extension verification, prefer the extension's own page target such as `chrome-extension://<extension-id>/index.html` or `options.html` when the real browser shell is not directly targetable, and treat that surrogate as the default UI surface unless the bug is specifically about the shell itself.
    When extension pages are hard to reach through a high-level library, use CDP target discovery/attachment rather than abandoning headless verification too early.
+   For extension conflict, duplicate, preflight, or confirmation UI, verify the persisted extension state and the mounted UI separately; a storage flag or background response is not enough if the final surrogate-page screenshot no longer shows the prompt.
    When the user asks for an "in-flight" screenshot, capture the first clearly visible running-state artifact that appears reliably, such as a toast, spinner, status pill, or progress step, instead of waiting for a richer client-only surface that may render later or inconsistently in headless mode.
 
 8. Call out when the product surface is not directly addressable.
@@ -64,11 +71,15 @@ Here, "anonymous" means a signed-in local `/check` user that is isolated from He
 9. Open the saved screenshot in Codex and inspect it directly.
    Do not treat command success or HTML output as visual verification.
    Call out whether the requested data or UI is actually visible from the chosen account's perspective.
+   For PDF, resume, document-preview, canvas, or embedded-viewer surfaces, treat a blank or mostly blank viewer screenshot as failed verification, even when DOM assertions pass.
+   If headless Chromium cannot paint the embedded viewer, verify the artifact with native parsing such as page count and extracted text, then escalate to a real/headed browser or a page-render screenshot before claiming the visual result.
+   Do not add product-code debug fixtures, mock records, routes, or buttons solely to satisfy this visual check; keep temporary fixtures and screenshots under this skill's `repos/<repo-key>/` runtime area.
    DOM assertions, locator checks, and other direct page inspection can support the diagnosis, but a screenshot is still the completion artifact for `/check`.
 
-10. Patch the skill and repo-local helpers when the workflow breaks.
-   If a missing step, flaky command, or auth edge case shows up during real use, update this skill first and keep repo-local additions minimal before trying again.
+10. Patch the skill and repo-local helpers when the workflow breaks or teaches you something reusable.
+   Treat `/check` as a self-healing skill: if a missing step, flaky command, auth edge case, browser harness issue, or hard-won repo-specific discovery shows up during real use, update this skill first and keep repo-local additions minimal before trying again.
    If a `/check` run spends most of its time manually reaching the state to verify instead of proving the state itself, add or improve a repo-local prep helper so the next run can jump straight to the visual assertion.
+   After each run, do a quick self-improvement pass and decide whether the global skill or repo-local support files should be updated so future runs are faster and more seamless.
 
 ## Repo Pattern
 
@@ -115,3 +126,9 @@ Report:
 - an inline screenshot preview using Markdown image syntax with the absolute file path, unless the user asks for text-only output
 - whether the requested account-specific data was visible
 - any remaining auth or page-load uncertainty
+
+Then output a line containing exactly:
+
+---------
+
+After that delimiter, state whether you changed anything about this skill or its repo-local helpers so future `/check` runs are faster and more seamless. If nothing changed, say that no self-healing update was needed.
