@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cursor Config"
+  short_description: "Debug Cursor terminal, SCM, and diff slowness"
+  default_prompt: "Use $cursor-config to debug Cursor terminal, SCM, or diff loading issues."
