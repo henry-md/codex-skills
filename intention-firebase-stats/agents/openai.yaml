@@ -1,0 +1,4 @@
+interface:
+  display_name: "Intention Firebase Stats"
+  short_description: "Query Intention Setting user stats"
+  default_prompt: "Use $intention-firebase-stats to report aggregate Firebase user stats for the Intention Setting app."
