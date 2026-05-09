@@ -1,4 +1,4 @@
 interface:
   display_name: "Checks"
-  short_description: "Iterate until the UI matches spec"
-  default_prompt: "Use $checks to keep visiting the target page, editing the code, and looping until the screenshot matches the user request or a real blocker remains."
+  short_description: "Hunt UI bugs and iterate until fixed"
+  default_prompt: "Use $checks to generate likely bug hypotheses from the current feature context, probe the target and adjacent routes, fix confirmed issues, and loop until the feature is visibly right or a real blocker remains."
