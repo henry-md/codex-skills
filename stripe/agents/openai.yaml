@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stripe"
+  short_description: "Stripe safety notes and testing guardrails"
+  default_prompt: "Use $stripe to safely inspect or test a Stripe integration without creating risky payment side effects."
