@@ -57,6 +57,8 @@ resolve_path() {
 
 CHECK_BASE_URL="${CHECK_BASE_URL:-http://127.0.0.1:3000}"
 CHECK_OUTPUT_DIR="${CHECK_OUTPUT_DIR:-$CHECK_REPO_DIR/output}"
+CHECK_AUTH_STRATEGY="${CHECK_AUTH_STRATEGY:-interactive-playwright}"
+CHECK_SKIP_AUTH_STATE="${CHECK_SKIP_AUTH_STATE:-false}"
 
 CHECK_STATE_FILE_ABS="$(resolve_path "$CHECK_STATE_FILE")"
 CHECK_OUTPUT_DIR_ABS="$(resolve_path "$CHECK_OUTPUT_DIR")"
@@ -77,13 +79,23 @@ fi
 
 SHOT_FILE="$CHECK_OUTPUT_DIR_ABS/${OUTPUT_NAME}.png"
 
-"$SCRIPT_DIR/ensure-auth-state.sh"
+PLAYWRIGHT_STORAGE_ARGS=()
+if [[ "$CHECK_SKIP_AUTH_STATE" != "true" && "$CHECK_AUTH_STRATEGY" != "none" ]]; then
+  "$SCRIPT_DIR/ensure-auth-state.sh"
+  PLAYWRIGHT_STORAGE_ARGS=(--load-storage "$CHECK_STATE_FILE_ABS")
+fi
+
+if ((${#PLAYWRIGHT_STORAGE_ARGS[@]})); then
+  STORAGE_ARGS=("${PLAYWRIGHT_STORAGE_ARGS[@]}")
+else
+  STORAGE_ARGS=()
+fi
 
 npx playwright screenshot \
   --browser chromium \
   --full-page \
   --wait-for-timeout 1500 \
-  --load-storage "$CHECK_STATE_FILE_ABS" \
+  "${STORAGE_ARGS[@]+"${STORAGE_ARGS[@]}"}" \
   "$TARGET_URL" \
   "$SHOT_FILE"
 
