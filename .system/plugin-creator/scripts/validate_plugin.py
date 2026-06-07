@@ -10,10 +10,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlparse
 
-try:
-    import yaml
-except ModuleNotFoundError:  # pragma: no cover - exercised on bare Python installs.
-    yaml = None
+import yaml
 
 
 TODO_MARKER = "[TODO:"
@@ -389,8 +386,8 @@ def validate_skill_manifest(skill_root: Path, errors: list[str]) -> None:
         errors.append(f"skill `{skill_root.name}` frontmatter is not closed")
         return
     try:
-        frontmatter = load_yaml_object(contents[4:frontmatter_end])
-    except ValueError:
+        frontmatter = yaml.safe_load(contents[4:frontmatter_end])
+    except yaml.YAMLError:
         errors.append(f"skill `{skill_root.name}` frontmatter must be valid YAML")
         return
     if not isinstance(frontmatter, dict):
@@ -429,11 +426,11 @@ def validate_skill_agent_manifest(
     errors: list[str],
 ) -> None:
     try:
-        payload = load_yaml_object(agent_yaml_path.read_text(encoding="utf-8"))
+        payload = yaml.safe_load(agent_yaml_path.read_text(encoding="utf-8"))
     except OSError:
         errors.append(f"unable to read skill `{skill_root.name}` agent YAML")
         return
-    except ValueError:
+    except yaml.YAMLError:
         errors.append(f"skill `{skill_root.name}` agent YAML must be valid YAML")
         return
     if not isinstance(payload, dict):
@@ -545,57 +542,6 @@ def reject_skill_agent_unknown_fields(
         errors.append(
             f"skill `{skill_root.name}` agent field `{field}` is not accepted by plugin validation"
         )
-
-
-def load_yaml_object(contents: str) -> Any:
-    if yaml is not None:
-        return yaml.safe_load(contents)
-    return parse_simple_yaml(contents)
-
-
-def parse_simple_yaml(contents: str) -> dict[str, Any]:
-    root: dict[str, Any] = {}
-    stack: list[tuple[int, dict[str, Any]]] = [(-1, root)]
-    for raw_line in contents.splitlines():
-        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
-            continue
-        indent = len(raw_line) - len(raw_line.lstrip(" "))
-        stripped = raw_line.strip()
-        if ":" not in stripped:
-            raise ValueError("unsupported YAML line")
-        key, raw_value = stripped.split(":", 1)
-        key = key.strip()
-        raw_value = raw_value.strip()
-        if not key:
-            raise ValueError("missing YAML key")
-        while stack and indent <= stack[-1][0]:
-            stack.pop()
-        if not stack:
-            raise ValueError("invalid YAML indentation")
-        parent = stack[-1][1]
-        if raw_value == "":
-            child: dict[str, Any] = {}
-            parent[key] = child
-            stack.append((indent, child))
-        else:
-            parent[key] = parse_simple_yaml_scalar(raw_value)
-    return root
-
-
-def parse_simple_yaml_scalar(raw_value: str) -> Any:
-    if raw_value in {"true", "True"}:
-        return True
-    if raw_value in {"false", "False"}:
-        return False
-    if raw_value in {"null", "Null", "~"}:
-        return None
-    if (
-        len(raw_value) >= 2
-        and raw_value[0] == raw_value[-1]
-        and raw_value[0] in {'"', "'"}
-    ):
-        return raw_value[1:-1]
-    return raw_value
 
 
 def validate_optional_asset_path(
