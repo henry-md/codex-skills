@@ -69,6 +69,14 @@ CHECK_DATABASE_ENV_FILE="${CHECK_DATABASE_ENV_FILE:-.env}"
 CHECK_PRISMA_CLIENT_PATH="${CHECK_PRISMA_CLIENT_PATH:-generated/prisma/client.ts}"
 CHECK_PRISMA_ADAPTER_PACKAGE="${CHECK_PRISMA_ADAPTER_PACKAGE:-@prisma/adapter-pg}"
 CHECK_PRISMA_ADAPTER_EXPORT="${CHECK_PRISMA_ADAPTER_EXPORT:-PrismaPg}"
+CHECK_AUTH_VERIFY_STRATEGY="${CHECK_AUTH_VERIFY_STRATEGY:-nextauth-session}"
+CHECK_AUTH_VERIFY_URL="${CHECK_AUTH_VERIFY_URL:-$CHECK_BASE_URL/dashboard}"
+CHECK_AUTH_VERIFY_REQUIRED_TEXT="${CHECK_AUTH_VERIFY_REQUIRED_TEXT:-}"
+CHECK_AUTH_VERIFY_FORBIDDEN_TEXT="${CHECK_AUTH_VERIFY_FORBIDDEN_TEXT:-}"
+if [[ -z "${CHECK_PYTHON:-}" && -x "/opt/homebrew/opt/python@3.13/bin/python3.13" ]]; then
+  CHECK_PYTHON="/opt/homebrew/opt/python@3.13/bin/python3.13"
+fi
+CHECK_PYTHON="${CHECK_PYTHON:-python3}"
 
 CHECK_STATE_FILE_ABS="$(resolve_path "$CHECK_STATE_FILE")"
 CHECK_OUTPUT_DIR_ABS="$(resolve_path "$CHECK_OUTPUT_DIR")"
@@ -77,10 +85,32 @@ CHECK_DATABASE_ENV_FILE_ABS="$(resolve_path "$CHECK_DATABASE_ENV_FILE")"
 mkdir -p "$CHECK_OUTPUT_DIR_ABS" "$(dirname "$CHECK_STATE_FILE_ABS")"
 chmod 700 "$(dirname "$CHECK_STATE_FILE_ABS")"
 
-if python3 "$SCRIPT_DIR/verify-nextauth-session.py" \
-  "$CHECK_STATE_FILE_ABS" \
-  "$CHECK_SESSION_URL" \
-  "$CHECK_EMAIL"; then
+verify_auth_state() {
+  case "$CHECK_AUTH_VERIFY_STRATEGY" in
+    none)
+      [[ -f "$CHECK_STATE_FILE_ABS" ]]
+      ;;
+    nextauth-session)
+      "$CHECK_PYTHON" "$SCRIPT_DIR/verify-nextauth-session.py" \
+        "$CHECK_STATE_FILE_ABS" \
+        "$CHECK_SESSION_URL" \
+        "$CHECK_EMAIL"
+      ;;
+    firebase-route|route)
+      "$CHECK_PYTHON" "$SCRIPT_DIR/verify-route-storage-state.py" \
+        "$CHECK_STATE_FILE_ABS" \
+        "$CHECK_AUTH_VERIFY_URL" \
+        "$CHECK_AUTH_VERIFY_REQUIRED_TEXT" \
+        "$CHECK_AUTH_VERIFY_FORBIDDEN_TEXT"
+      ;;
+    *)
+      echo "Unsupported CHECK_AUTH_VERIFY_STRATEGY: $CHECK_AUTH_VERIFY_STRATEGY" >&2
+      return 1
+      ;;
+  esac
+}
+
+if verify_auth_state; then
   exit 0
 fi
 
@@ -124,7 +154,4 @@ esac
 
 chmod 600 "$CHECK_STATE_FILE_ABS"
 
-python3 "$SCRIPT_DIR/verify-nextauth-session.py" \
-  "$CHECK_STATE_FILE_ABS" \
-  "$CHECK_SESSION_URL" \
-  "$CHECK_EMAIL"
+verify_auth_state

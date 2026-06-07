@@ -59,6 +59,7 @@ CHECK_BASE_URL="${CHECK_BASE_URL:-http://127.0.0.1:3000}"
 CHECK_OUTPUT_DIR="${CHECK_OUTPUT_DIR:-$CHECK_REPO_DIR/output}"
 CHECK_AUTH_STRATEGY="${CHECK_AUTH_STRATEGY:-interactive-playwright}"
 CHECK_SKIP_AUTH_STATE="${CHECK_SKIP_AUTH_STATE:-false}"
+CHECK_CAPTURE_COMMAND="${CHECK_CAPTURE_COMMAND:-}"
 
 CHECK_STATE_FILE_ABS="$(resolve_path "$CHECK_STATE_FILE")"
 CHECK_OUTPUT_DIR_ABS="$(resolve_path "$CHECK_OUTPUT_DIR")"
@@ -91,12 +92,17 @@ else
   STORAGE_ARGS=()
 fi
 
-npx playwright screenshot \
-  --browser chromium \
-  --full-page \
-  --wait-for-timeout 1500 \
-  "${STORAGE_ARGS[@]+"${STORAGE_ARGS[@]}"}" \
-  "$TARGET_URL" \
-  "$SHOT_FILE"
+if [[ -n "$CHECK_CAPTURE_COMMAND" ]]; then
+  export TARGET_INPUT TARGET_URL TARGET_LABEL SHOT_FILE CHECK_STATE_FILE_ABS
+  eval "$CHECK_CAPTURE_COMMAND"
+else
+  npx playwright screenshot \
+    --browser chromium \
+    --full-page \
+    --wait-for-timeout 1500 \
+    "${STORAGE_ARGS[@]+"${STORAGE_ARGS[@]}"}" \
+    "$TARGET_URL" \
+    "$SHOT_FILE"
+fi
 
 echo "Saved screenshot to $SHOT_FILE"
