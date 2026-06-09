@@ -1,0 +1,4 @@
+interface:
+  display_name: "Suggest Reflection"
+  short_description: "Find Codex tabs worth reflecting on"
+  default_prompt: "Use $suggest-reflection to recommend open Codex tabs where /reflect may help."
