@@ -72,6 +72,7 @@ Use this skill when one screenshot is not enough and the job is to actively hunt
 ## Operating Rules
 
 - Use screenshots as the source of truth for completion.
+- When verifying streaming text, screenshots must prove progression, not just final presence. Capture at least two screenshots from the same stream while it is still in flight: one where the streamed message is partially filled, and a later one where visibly more text has filled. DOM polling, logs, cursor counts, or final screenshots can support the result, but they do not replace those two in-flight screenshots.
 - Treat `/checks` as an active bug-hunting and bug-fixing workflow, not a passive screenshot audit.
 - Let the recent chat context guide what adjacent routes, states, and user journeys deserve probing.
 - Try to find real breakage before declaring success, but do not invent speculative bugs without evidence.
