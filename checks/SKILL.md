@@ -1,11 +1,11 @@
 ---
 name: checks
-description: Iteratively verify, stress, and fix a requested UI or product change by using screenshots and direct browser inspection to generate bug hypotheses, probe likely breaking routes or states, edit code for confirmed issues, and loop until the feature is visibly right and no obvious adjacent breakage remains. Use when the user invokes `/checks`, wants you to keep checking a page until it looks right, or expects an autonomous bug-hunting, screenshot, compare, edit, and fix loop rather than a single passive verification pass.
+description: First reproduce and screenshot the reported UI or product issue, then iteratively verify, stress, and fix it by using screenshots and direct browser inspection to generate bug hypotheses, probe likely breaking routes or states, edit code for confirmed issues, and loop until the feature is visibly right and no obvious adjacent breakage remains. Use when the user invokes `/checks`, wants you to keep checking a page until it looks right, or expects an autonomous bug-hunting, screenshot, compare, edit, and fix loop rather than a single passive verification pass.
 ---
 
 # Checks
 
-Use this skill when one screenshot is not enough and the job is to actively hunt for problems introduced by the current work, fix the confirmed bugs, and keep iterating until the feature actually works in the relevant product context.
+Use this skill when one screenshot is not enough and the job is to first reproduce the reported issue, then actively hunt for problems introduced by the current work, fix the confirmed bugs, and keep iterating until the feature actually works in the relevant product context.
 
 ## Workflow
 
@@ -21,15 +21,20 @@ Use this skill when one screenshot is not enough and the job is to actively hunt
    If the user invokes `/checks` without a path, infer the route and any necessary in-app navigation from the current task context.
    Translate the user's request and the recent chat context into concrete visual, behavioral, and workflow expectations before editing anything.
    Identify the new or changed feature being verified, what user journey it belongs to, and which nearby routes, states, roles, data shapes, responsive sizes, or edge cases could plausibly break because of it.
+   Define the metric of success before fixing anything: what screenshot, DOM state, console/network condition, workflow outcome, or artifact evidence would prove the issue is fixed.
+   If there is no observable success metric, stop and explain the missing verification target instead of entering a fix loop.
 
-3. Generate an initial bug-hypothesis list.
-   Before changing code, write down the most likely failure modes for the feature in this repo, grounded in the request and what the product flow probably touches.
+3. Reproduce the reported issue before editing anything.
+   The first job is verification: use the resolved route, state setup, and `$check` capture flow to make the bug happen in the current environment.
+   Capture screenshot evidence that shows the reported bug or mismatch. For temporal issues such as loading, streaming, animation, or state transitions, capture enough screenshots to prove the bad progression or stuck state.
+   Inspect the screenshot directly in Codex and compare it against the user's report and the success metric.
+   Do not move on to diagnosis, bug hypotheses, or code changes until you have screenshot evidence reproducing the issue.
+   If you cannot reproduce the issue, do not start fixing speculatively. Report what you tried, include the screenshot or direct evidence you captured, and explain what state, data, credentials, route, timing, or environment detail is missing.
+
+4. Generate the initial bug-hypothesis list only after reproduction.
+   Once the issue has been reproduced, write down the most likely failure modes for the feature in this repo, grounded in the screenshot evidence and what the product flow touches.
    Include route-level hypotheses such as broken deep links, missing loading/error/empty states, auth redirects, stale data, responsive layout failures, form validation gaps, console/runtime errors, and regressions on adjacent pages.
-   Prioritize hypotheses by user impact and likelihood, then choose the first route or state to probe.
-
-4. Capture a baseline screenshot immediately.
-   Reuse the Henry-authenticated `$check` flow first so you can see the current state of the page before making changes.
-   Inspect the screenshot directly in Codex. Do not trust code inspection alone.
+   Prioritize hypotheses by user impact, likelihood, and how directly they connect to the reproduced evidence, then choose the first route or state to probe.
 
 5. Probe for confirmed bugs, not just visual mismatches.
    Compare the screenshot and direct browser evidence against the request, the feature context, and the current hypothesis list.
@@ -60,6 +65,7 @@ Use this skill when one screenshot is not enough and the job is to actively hunt
 9. Repeat until one of two conditions is true.
    Stop only when a final fresh screenshot shows the requested result closely enough to satisfy the user's ask and the high-impact adjacent-route hypotheses have either been checked or reasonably ruled out.
    Otherwise keep looping as long as another reasonable bug hypothesis, route probe, or fix attempt exists.
+   If the loop loses its metric of success, stop and re-establish it before making more edits.
 
 10. Every 5-10 verification cycles, pause and re-evaluate the approach.
    Ask explicitly whether the current loop is converging or whether you need to fundamentally rethink the plan, such as changing the diagnosis, route, state setup, selector strategy, or implementation path.
