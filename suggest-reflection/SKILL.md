@@ -43,7 +43,7 @@ When invoked with `auto` as the optional second keyword, treat that keyword as t
    - If the code looks simple and cohesive after inspection, omit it even if the tab sounded complex.
 
 5. Report a ranked suggestion list.
-   Include only suggestions you believe are positively worth a refactor. For each suggestion include:
+   Include only suggestions you believe are positively worth a refactor. Number each suggestion explicitly with a top-level ordered list (`1.`, `2.`, `3.`) so each recommendation is visually separated and easy to reference. For each suggestion include:
    - tab title and workspace `cwd`
    - status from the last transcript event, updated time, and transcript path when helpful
    - the high-level code-quality issue: what is inefficient, fragile, overly complex, or bad practice about the current implementation
@@ -56,7 +56,7 @@ When invoked with `auto` as the optional second keyword, treat that keyword as t
 7. If `auto` was given, run the `/reflect` workflow for each suggested refactor, one by one.
    - Do not ask for extra permission before starting; `auto` is the permission.
    - Process suggestions in ranked order unless a clear dependency suggests otherwise.
-   - Before each suggestion, briefly state which tab/system area you are reflecting on and the high-level code-quality problem you observed.
+   - Before each suggestion, briefly state the suggestion number, which tab/system area you are reflecting on, and the high-level code-quality problem you observed.
    - Use `/reflect`'s high bar. If reflection says no refactor is warranted, leave code unchanged and move to the next suggestion.
    - If a refactor is warranted, make only the focused cleanup for that suggestion, verify it, then continue.
    - Keep each suggestion's changes conceptually separate in your reporting so the user can see what happened where.

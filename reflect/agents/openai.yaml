@@ -1,4 +1,4 @@
 interface:
   display_name: "Reflect"
-  short_description: "Decide if recent work deserves cleanup"
-  default_prompt: "Use $reflect to review recent complex work and decide whether a focused refactor is objectively worthwhile."
+  short_description: "Recommend cleanup and regression checks"
+  default_prompt: "Use $reflect to review recent complex work, recommend only objectively worthwhile refactors, and include the regression checks needed to verify them."
