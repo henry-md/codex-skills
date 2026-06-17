@@ -1122,3 +1122,278 @@ def make_overlay(candidate: Image.Image, max_delta: np.ndarray, threshold: int) 
     return Image.alpha_composite(base, overlay).convert("RGB")
 
 
+def default_font(size: int = 18) -> ImageFont.ImageFont:
+    for candidate in [
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/Library/Fonts/Arial.ttf",
+    ]:
+        try:
+            return ImageFont.truetype(candidate, size)
+        except Exception:
+            pass
+    return ImageFont.load_default()
+
+
+def label_strip(images: list[tuple[str, Image.Image]], background: str) -> Image.Image:
+    label_h = 38
+    gutter = 10
+    total_w = sum(image.width for _, image in images) + gutter * (len(images) - 1)
+    max_h = max(image.height for _, image in images)
+    strip = Image.new("RGB", (total_w, max_h + label_h), hex_to_rgb(background))
+    draw = ImageDraw.Draw(strip)
+    font = default_font(18)
+    x = 0
+    for label, image in images:
+        draw.rectangle([x, 0, x + image.width, label_h], fill=(20, 20, 20))
+        draw.text((x + 12, 9), label, fill=(255, 255, 255), font=font)
+        strip.paste(image, (x, label_h))
+        x += image.width + gutter
+    return strip
+
+
+def crop_rect(image: Image.Image, rect: dict[str, Any]) -> Image.Image | None:
+    left = max(0, int(round(float(rect["x"]))))
+    top = max(0, int(round(float(rect["y"]))))
+    right = min(image.width, int(round(float(rect["x"]) + float(rect["width"]))))
+    bottom = min(image.height, int(round(float(rect["y"]) + float(rect["height"]))))
+    if right <= left or bottom <= top:
+        return None
+    return image.crop((left, top, right, bottom))
+
+
+def mean_rgb(image: Image.Image) -> dict[str, float]:
+    arr = np.asarray(image.convert("RGB"), dtype=np.float64)
+    if arr.size == 0:
+        return {"r": 0.0, "g": 0.0, "b": 0.0}
+    values = arr.reshape(-1, 3).mean(axis=0)
+    return {"r": round(float(values[0]), 3), "g": round(float(values[1]), 3), "b": round(float(values[2]), 3)}
+
+
+def rgb_to_hex(rgb: tuple[int, int, int] | list[int] | np.ndarray) -> str:
+    values = [max(0, min(255, int(round(float(v))))) for v in rgb[:3]]
+    return "#{:02x}{:02x}{:02x}".format(*values)
+
+
+def image_color_summary(image: Image.Image, top: int, quantum: int) -> dict[str, Any]:
+    arr = np.asarray(image.convert("RGB"), dtype=np.uint8)
+    pixels = arr.reshape(-1, 3)
+    if pixels.size == 0:
+        return {
+            "pixelCount": 0,
+            "meanRgb": {"r": 0.0, "g": 0.0, "b": 0.0},
+            "medianRgb": {"r": 0, "g": 0, "b": 0},
+            "dominantColors": [],
+        }
+
+    mean_values = pixels.astype(np.float64).mean(axis=0)
+    median_values = np.median(pixels, axis=0)
+    quantum = max(1, min(255, int(quantum)))
+    quantized = (pixels.astype(np.uint16) // quantum) * quantum
+    quantized = np.clip(quantized, 0, 255).astype(np.uint8)
+    colors, counts = np.unique(quantized, axis=0, return_counts=True)
+    order = np.argsort(counts)[::-1][: max(0, int(top))]
+    dominant = []
+    total = int(pixels.shape[0])
+    for idx in order:
+        rgb = tuple(int(v) for v in colors[idx])
+        count = int(counts[idx])
+        dominant.append(
+            {
+                "rgb": {"r": rgb[0], "g": rgb[1], "b": rgb[2]},
+                "hex": rgb_to_hex(rgb),
+                "count": count,
+                "percent": round((count / total) * 100, 3) if total else 0.0,
+            }
+        )
+
+    median_rgb = tuple(int(round(float(v))) for v in median_values)
+    return {
+        "pixelCount": total,
+        "meanRgb": {"r": round(float(mean_values[0]), 3), "g": round(float(mean_values[1]), 3), "b": round(float(mean_values[2]), 3)},
+        "meanHex": rgb_to_hex(mean_values),
+        "medianRgb": {"r": median_rgb[0], "g": median_rgb[1], "b": median_rgb[2]},
+        "medianHex": rgb_to_hex(median_rgb),
+        "dominantColors": dominant,
+    }
+
+
+def make_color_swatch(
+    sample: dict[str, Any],
+    out_dir: Path,
+    spec: ViewportSpec,
+    background: str,
+) -> str | None:
+    ref_colors = sample.get("reference", {}).get("dominantColors", [])
+    cand_colors = sample.get("candidate", {}).get("dominantColors", [])
+    if not ref_colors and not cand_colors:
+        return None
+    rows = max(len(ref_colors), len(cand_colors), 1)
+    label_w = 115
+    swatch_w = 72
+    row_h = 36
+    gutter = 16
+    width = label_w * 2 + swatch_w * 2 + gutter * 3
+    height = row_h * rows + 36
+    image = Image.new("RGB", (width, height), hex_to_rgb(background))
+    draw = ImageDraw.Draw(image)
+    font = default_font(14)
+    draw.text((12, 8), "Reference", fill=(20, 20, 20), font=font)
+    draw.text((label_w + swatch_w + gutter * 2, 8), "Candidate", fill=(20, 20, 20), font=font)
+
+    def draw_color_column(colors: list[dict[str, Any]], x: int) -> None:
+        for row in range(rows):
+            y = 32 + row * row_h
+            if row >= len(colors):
+                continue
+            color = colors[row]
+            rgb = color.get("rgb", {})
+            fill = (int(rgb.get("r", 0)), int(rgb.get("g", 0)), int(rgb.get("b", 0)))
+            draw.rectangle([x, y, x + swatch_w - 1, y + row_h - 7], fill=fill, outline=(210, 210, 210))
+            draw.text((x + swatch_w + 8, y + 1), color.get("hex", ""), fill=(20, 20, 20), font=font)
+            draw.text((x + swatch_w + 8, y + 17), f"{color.get('percent', 0):.1f}%", fill=(70, 70, 70), font=font)
+
+    draw_color_column(ref_colors, 12)
+    draw_color_column(cand_colors, label_w + swatch_w + gutter * 2)
+    path = out_dir / f"{spec.label}-color-pick-{safe_slug(sample['label'])}-swatches.png"
+    image.save(path)
+    return str(path)
+
+
+def resize_for_zoom(image: Image.Image, scale: int) -> Image.Image:
+    scale = max(1, int(scale))
+    if scale == 1:
+        return image.copy()
+    return image.resize((image.width * scale, image.height * scale), Image.Resampling.NEAREST)
+
+
+def make_zoom_artifacts(
+    ref: Image.Image,
+    cand: Image.Image,
+    heatmap: Image.Image,
+    overlay: Image.Image,
+    max_delta: np.ndarray,
+    spec: ViewportSpec,
+    out_dir: Path,
+    args: argparse.Namespace,
+) -> list[dict[str, Any]]:
+    zooms: list[dict[str, Any]] = []
+    scale = max(1, int(args.zoom_scale))
+    for rect in parse_zoom_rects(args.zoom_rect):
+        label = safe_slug(rect["label"])
+        ref_crop = crop_rect(ref, rect)
+        cand_crop = crop_rect(cand, rect)
+        heat_crop = crop_rect(heatmap, rect)
+        overlay_crop = crop_rect(overlay, rect)
+        if not ref_crop or not cand_crop or not heat_crop or not overlay_crop:
+            zooms.append({"label": label, "rect": rect, "error": "rect outside screenshot bounds"})
+            continue
+
+        left = max(0, int(round(float(rect["x"]))))
+        top = max(0, int(round(float(rect["y"]))))
+        right = min(max_delta.shape[1], int(round(float(rect["x"]) + float(rect["width"]))))
+        bottom = min(max_delta.shape[0], int(round(float(rect["y"]) + float(rect["height"]))))
+        crop_delta = max_delta[top:bottom, left:right]
+        crop_pixels = int(crop_delta.size)
+        crop_mismatch = int((crop_delta > args.threshold).sum()) if crop_pixels else 0
+        crop_mismatch_pct = (crop_mismatch / crop_pixels) * 100 if crop_pixels else 0.0
+
+        prefix = f"{spec.label}-zoom-{label}"
+        ref_path = out_dir / f"{prefix}-reference.png"
+        cand_path = out_dir / f"{prefix}-candidate.png"
+        heat_path = out_dir / f"{prefix}-heatmap.png"
+        overlay_path = out_dir / f"{prefix}-overlay.png"
+        side_path = out_dir / f"{prefix}-side-by-side.png"
+
+        ref_zoom = resize_for_zoom(ref_crop, scale)
+        cand_zoom = resize_for_zoom(cand_crop, scale)
+        heat_zoom = resize_for_zoom(heat_crop, scale)
+        overlay_zoom = resize_for_zoom(overlay_crop, scale)
+        ref_zoom.save(ref_path)
+        cand_zoom.save(cand_path)
+        heat_zoom.save(heat_path)
+        overlay_zoom.save(overlay_path)
+        label_strip(
+            [
+                (f"Reference {label} x{scale}", ref_zoom),
+                (f"Candidate {label} x{scale}", cand_zoom),
+                (f"Heatmap {label} x{scale}", heat_zoom),
+            ],
+            args.background,
+        ).save(side_path)
+
+        zooms.append(
+            {
+                "label": label,
+                "rect": {
+                    "x": left,
+                    "y": top,
+                    "width": right - left,
+                    "height": bottom - top,
+                },
+                "scale": scale,
+                "mismatchPixels": crop_mismatch,
+                "totalPixels": crop_pixels,
+                "mismatchPercent": crop_mismatch_pct,
+                "referenceMeanRgb": mean_rgb(ref_crop),
+                "candidateMeanRgb": mean_rgb(cand_crop),
+                "referenceImage": str(ref_path),
+                "candidateImage": str(cand_path),
+                "heatmapImage": str(heat_path),
+                "overlayImage": str(overlay_path),
+                "sideBySideImage": str(side_path),
+            }
+        )
+    return zooms
+
+
+def color_pick_rect_for_point(pick: dict[str, Any]) -> dict[str, Any]:
+    radius = float(pick.get("radius") or 0)
+    x = float(pick["x"])
+    y = float(pick["y"])
+    return {
+        "label": pick["label"],
+        "x": x - radius,
+        "y": y - radius,
+        "width": max(1.0, radius * 2 + 1),
+        "height": max(1.0, radius * 2 + 1),
+        "point": {"x": x, "y": y, "radius": radius},
+    }
+
+
+def make_color_pick_artifacts(
+    ref: Image.Image,
+    cand: Image.Image,
+    spec: ViewportSpec,
+    out_dir: Path,
+    args: argparse.Namespace,
+) -> list[dict[str, Any]]:
+    samples: list[dict[str, Any]] = []
+    rects = [color_pick_rect_for_point(pick) for pick in parse_color_picks(args.color_pick)]
+    rects.extend(parse_zoom_rects(args.color_pick_rect))
+    for rect in rects:
+        label = safe_slug(rect["label"])
+        ref_crop = crop_rect(ref, rect)
+        cand_crop = crop_rect(cand, rect)
+        if not ref_crop or not cand_crop:
+            samples.append({"label": label, "rect": rect, "error": "sample outside screenshot bounds"})
+            continue
+        left = max(0, int(round(float(rect["x"]))))
+        top = max(0, int(round(float(rect["y"]))))
+        right = min(ref.width, int(round(float(rect["x"]) + float(rect["width"]))))
+        bottom = min(ref.height, int(round(float(rect["y"]) + float(rect["height"]))))
+        sample = {
+            "label": label,
+            "rect": {"x": left, "y": top, "width": right - left, "height": bottom - top},
+            "point": rect.get("point"),
+            "quantum": max(1, min(255, int(args.color_pick_quantum))),
+            "reference": image_color_summary(ref_crop, args.color_pick_top, args.color_pick_quantum),
+            "candidate": image_color_summary(cand_crop, args.color_pick_top, args.color_pick_quantum),
+        }
+        swatch = make_color_swatch(sample, out_dir, spec, args.background)
+        if swatch:
+            sample["swatchImage"] = swatch
+        samples.append(sample)
+    return samples
+
+
