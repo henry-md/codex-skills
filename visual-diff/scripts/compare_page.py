@@ -1397,3 +1397,500 @@ def make_color_pick_artifacts(
     return samples
 
 
+def compare_images(reference_path: Path, candidate_path: Path, spec: ViewportSpec, out_dir: Path, args: argparse.Namespace) -> dict[str, Any]:
+    ref_raw = Image.open(reference_path).convert("RGB")
+    cand_raw = Image.open(candidate_path).convert("RGB")
+    width = max(ref_raw.width, cand_raw.width)
+    height = max(ref_raw.height, cand_raw.height)
+    size = (width, height)
+
+    ref = padded_rgb(reference_path, size, args.background)
+    cand = padded_rgb(candidate_path, size, args.background)
+    arr_ref = np.asarray(ref).astype(np.int16)
+    arr_cand = np.asarray(cand).astype(np.int16)
+    delta = np.abs(arr_ref - arr_cand)
+    max_delta = delta.max(axis=2).astype(np.uint8)
+    mask = max_delta > args.threshold
+    total_pixels = width * height
+    mismatch_pixels = int(mask.sum())
+    mismatch_pct = (mismatch_pixels / total_pixels) * 100 if total_pixels else 0.0
+    mae = float(delta.mean())
+    rmse = float(math.sqrt(np.square(delta.astype(np.float64)).mean()))
+    gray_ref = (arr_ref[..., 0] * 0.299 + arr_ref[..., 1] * 0.587 + arr_ref[..., 2] * 0.114).astype(np.uint8)
+    gray_cand = (arr_cand[..., 0] * 0.299 + arr_cand[..., 1] * 0.587 + arr_cand[..., 2] * 0.114).astype(np.uint8)
+    ssim = estimate_ssim(gray_ref, gray_cand)
+
+    heatmap_path = out_dir / f"{spec.label}-heatmap.png"
+    overlay_path = out_dir / f"{spec.label}-overlay.png"
+    side_by_side_path = out_dir / f"{spec.label}-side-by-side.png"
+    padded_reference_path = out_dir / f"{spec.label}-reference-padded.png"
+    padded_candidate_path = out_dir / f"{spec.label}-candidate-padded.png"
+
+    heatmap = make_heatmap(max_delta, args.threshold)
+    overlay = make_overlay(cand, max_delta, args.threshold)
+    zoom_artifacts = make_zoom_artifacts(ref, cand, heatmap, overlay, max_delta, spec, out_dir, args) if args.zoom_rect else []
+    color_picks = make_color_pick_artifacts(ref, cand, spec, out_dir, args) if args.color_pick or args.color_pick_rect else []
+    strip = label_strip(
+        [
+            ("Reference", ref),
+            ("Candidate", cand),
+            ("Heatmap", heatmap),
+        ],
+        args.background,
+    )
+
+    ref.save(padded_reference_path)
+    cand.save(padded_candidate_path)
+    heatmap.save(heatmap_path)
+    overlay.save(overlay_path)
+    strip.save(side_by_side_path)
+
+    return {
+        "referenceImage": str(reference_path),
+        "candidateImage": str(candidate_path),
+        "paddedReferenceImage": str(padded_reference_path),
+        "paddedCandidateImage": str(padded_candidate_path),
+        "heatmapImage": str(heatmap_path),
+        "overlayImage": str(overlay_path),
+        "sideBySideImage": str(side_by_side_path),
+        "referenceSize": {"width": ref_raw.width, "height": ref_raw.height},
+        "candidateSize": {"width": cand_raw.width, "height": cand_raw.height},
+        "comparisonSize": {"width": width, "height": height},
+        "sameSize": ref_raw.size == cand_raw.size,
+        "threshold": args.threshold,
+        "mismatchPixels": mismatch_pixels,
+        "totalPixels": total_pixels,
+        "mismatchPercent": mismatch_pct,
+        "mae": mae,
+        "rmse": rmse,
+        "ssimEstimate": ssim,
+        "zoomArtifacts": zoom_artifacts,
+        "colorPicks": color_picks,
+    }
+
+
+def make_unmasked_side_by_side(
+    reference_path: Path,
+    candidate_path: Path,
+    spec: ViewportSpec,
+    out_dir: Path,
+    args: argparse.Namespace,
+) -> str:
+    ref_raw = Image.open(reference_path).convert("RGB")
+    cand_raw = Image.open(candidate_path).convert("RGB")
+    size = (max(ref_raw.width, cand_raw.width), max(ref_raw.height, cand_raw.height))
+    ref = padded_rgb(reference_path, size, args.background)
+    cand = padded_rgb(candidate_path, size, args.background)
+    path = out_dir / f"{spec.label}-side-by-side-unmasked.png"
+    label_strip([("Reference unmasked", ref), ("Candidate unmasked", cand)], args.background).save(path)
+    return str(path)
+
+
+def rel(path: str | None, base: Path) -> str:
+    if not path:
+        return ""
+    try:
+        return os.path.relpath(path, base)
+    except Exception:
+        return path
+
+
+def write_reports(report: dict[str, Any], out_dir: Path) -> None:
+    json_path = out_dir / "report.json"
+    md_path = out_dir / "report.md"
+    html_path = out_dir / "report.html"
+    report["reportJson"] = str(json_path)
+    report["reportMarkdown"] = str(md_path)
+    report["reportHtml"] = str(html_path)
+    json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+
+    md_lines = [
+        "# Visual Diff Report",
+        "",
+        f"- Reference: {report['referenceUrl']}",
+        f"- Candidate: {report['candidateUrl']}",
+        f"- Created: {report['createdAt']}",
+        f"- Output: `{out_dir}`",
+        "",
+        "| Viewport | Ref size | Candidate size | Mismatch | SSIM estimate | Same size |",
+        "| --- | --- | --- | ---: | ---: | --- |",
+    ]
+    for item in report["viewports"]:
+        diff = item["diff"]
+        md_lines.append(
+            f"| {item['label']} | {diff['referenceSize']['width']}x{diff['referenceSize']['height']} | "
+            f"{diff['candidateSize']['width']}x{diff['candidateSize']['height']} | "
+            f"{diff['mismatchPercent']:.4f}% | {diff['ssimEstimate']:.6f} | {diff['sameSize']} |"
+        )
+    md_lines.append("")
+    for item in report["viewports"]:
+        diff = item["diff"]
+        md_lines.extend(
+            [
+                f"## {item['label']}",
+                "",
+                f"Side by side: `{diff['sideBySideImage']}`",
+                "",
+                f"![{item['label']} side by side]({rel(diff['sideBySideImage'], out_dir)})",
+                "",
+                f"Unmasked side by side: `{diff.get('unmaskedSideBySideImage', '')}`",
+                "",
+                f"![{item['label']} unmasked side by side]({rel(diff.get('unmaskedSideBySideImage'), out_dir)})",
+                "",
+                f"Heatmap: `{diff['heatmapImage']}`",
+                "",
+                f"![{item['label']} heatmap]({rel(diff['heatmapImage'], out_dir)})",
+                "",
+                f"Overlay: `{diff['overlayImage']}`",
+                "",
+                f"![{item['label']} overlay]({rel(diff['overlayImage'], out_dir)})",
+                "",
+            ]
+        )
+        for zoom in diff.get("zoomArtifacts", []):
+            if zoom.get("error"):
+                md_lines.extend([f"### Zoom: {zoom.get('label', '')}", "", f"Error: `{zoom['error']}`", ""])
+                continue
+            md_lines.extend(
+                [
+                    f"### Zoom: {zoom['label']}",
+                    "",
+                    f"Rect: `{zoom['rect']}`; scale: `{zoom['scale']}`; mismatch: `{zoom['mismatchPercent']:.4f}%`",
+                    "",
+                    f"Reference mean RGB: `{zoom['referenceMeanRgb']}`; candidate mean RGB: `{zoom['candidateMeanRgb']}`",
+                    "",
+                    f"Zoom side by side: `{zoom['sideBySideImage']}`",
+                    "",
+                    f"![{item['label']} {zoom['label']} zoom]({rel(zoom['sideBySideImage'], out_dir)})",
+                    "",
+                    f"Zoom overlay: `{zoom['overlayImage']}`",
+                    "",
+                    f"![{item['label']} {zoom['label']} overlay]({rel(zoom['overlayImage'], out_dir)})",
+                    "",
+                ]
+            )
+        for sample in diff.get("colorPicks", []):
+            if sample.get("error"):
+                md_lines.extend([f"### Color Pick: {sample.get('label', '')}", "", f"Error: `{sample['error']}`", ""])
+                continue
+            md_lines.extend(
+                [
+                    f"### Color Pick: {sample['label']}",
+                    "",
+                    f"Rect: `{sample['rect']}`; point: `{sample.get('point')}`; quantum: `{sample['quantum']}`",
+                    "",
+                    f"Reference mean/median: `{sample['reference'].get('meanHex')}` / `{sample['reference'].get('medianHex')}`",
+                    "",
+                    f"Candidate mean/median: `{sample['candidate'].get('meanHex')}` / `{sample['candidate'].get('medianHex')}`",
+                    "",
+                    f"Reference dominant: `{sample['reference'].get('dominantColors', [])}`",
+                    "",
+                    f"Candidate dominant: `{sample['candidate'].get('dominantColors', [])}`",
+                    "",
+                ]
+            )
+            if sample.get("swatchImage"):
+                md_lines.extend(
+                    [
+                        f"Color swatches: `{sample['swatchImage']}`",
+                        "",
+                        f"![{item['label']} {sample['label']} color swatches]({rel(sample['swatchImage'], out_dir)})",
+                        "",
+                    ]
+                )
+        md_lines.extend(
+            [
+                f"Reference content: `{item['reference'].get('content', {}).get('json', '')}`",
+                "",
+                f"Candidate content: `{item['candidate'].get('content', {}).get('json', '')}`",
+                "",
+                f"Unmasked reference screenshot: `{item['reference'].get('unmaskedScreenshot', '')}`",
+                "",
+                f"Unmasked candidate screenshot: `{item['candidate'].get('unmaskedScreenshot', '')}`",
+                "",
+            ]
+        )
+    md_path.write_text("\n".join(md_lines), encoding="utf-8")
+
+    rows = []
+    sections = []
+    for item in report["viewports"]:
+        diff = item["diff"]
+        rows.append(
+            "<tr>"
+            f"<td>{html.escape(item['label'])}</td>"
+            f"<td>{diff['referenceSize']['width']}x{diff['referenceSize']['height']}</td>"
+            f"<td>{diff['candidateSize']['width']}x{diff['candidateSize']['height']}</td>"
+            f"<td>{diff['mismatchPercent']:.4f}%</td>"
+            f"<td>{diff['ssimEstimate']:.6f}</td>"
+            f"<td>{diff['sameSize']}</td>"
+            "</tr>"
+        )
+        zoom_sections = []
+        for zoom in diff.get("zoomArtifacts", []):
+            if zoom.get("error"):
+                zoom_sections.append(
+                    f"""
+                    <h3>Zoom: {html.escape(str(zoom.get('label', '')))}</h3>
+                    <p><strong>Error:</strong> <code>{html.escape(str(zoom['error']))}</code></p>
+                    """
+                )
+                continue
+            zoom_sections.append(
+                f"""
+                <h3>Zoom: {html.escape(zoom['label'])}</h3>
+                <p>Rect: <code>{html.escape(json.dumps(zoom['rect']))}</code>; scale:
+                <code>{zoom['scale']}</code>; mismatch: <code>{zoom['mismatchPercent']:.4f}%</code></p>
+                <p>Reference mean RGB: <code>{html.escape(json.dumps(zoom['referenceMeanRgb']))}</code>;
+                candidate mean RGB: <code>{html.escape(json.dumps(zoom['candidateMeanRgb']))}</code></p>
+                <img src="{html.escape(rel(zoom['sideBySideImage'], out_dir))}" alt="{html.escape(item['label'])} {html.escape(zoom['label'])} zoom">
+                <h4>Zoom overlay</h4>
+                <img src="{html.escape(rel(zoom['overlayImage'], out_dir))}" alt="{html.escape(item['label'])} {html.escape(zoom['label'])} overlay">
+                """
+            )
+        color_sections = []
+        for sample in diff.get("colorPicks", []):
+            if sample.get("error"):
+                color_sections.append(
+                    f"""
+                    <h3>Color Pick: {html.escape(str(sample.get('label', '')))}</h3>
+                    <p><strong>Error:</strong> <code>{html.escape(str(sample['error']))}</code></p>
+                    """
+                )
+                continue
+            swatch_html = ""
+            if sample.get("swatchImage"):
+                swatch_html = f'<img src="{html.escape(rel(sample["swatchImage"], out_dir))}" alt="{html.escape(item["label"])} {html.escape(sample["label"])} color swatches">'
+            color_sections.append(
+                f"""
+                <h3>Color Pick: {html.escape(sample['label'])}</h3>
+                <p>Rect: <code>{html.escape(json.dumps(sample['rect']))}</code>; point:
+                <code>{html.escape(json.dumps(sample.get('point')))}</code>; quantum:
+                <code>{sample['quantum']}</code></p>
+                <p>Reference mean/median: <code>{html.escape(str(sample['reference'].get('meanHex')))}</code> /
+                <code>{html.escape(str(sample['reference'].get('medianHex')))}</code></p>
+                <p>Candidate mean/median: <code>{html.escape(str(sample['candidate'].get('meanHex')))}</code> /
+                <code>{html.escape(str(sample['candidate'].get('medianHex')))}</code></p>
+                <details open><summary>Dominant colors</summary>
+                  <p>Reference: <code>{html.escape(json.dumps(sample['reference'].get('dominantColors', [])))}</code></p>
+                  <p>Candidate: <code>{html.escape(json.dumps(sample['candidate'].get('dominantColors', [])))}</code></p>
+                </details>
+                {swatch_html}
+                """
+            )
+        sections.append(
+            f"""
+            <section>
+              <h2>{html.escape(item['label'])}</h2>
+              <h3>Side by side</h3>
+              <img src="{html.escape(rel(diff['sideBySideImage'], out_dir))}" alt="{html.escape(item['label'])} side by side">
+              <h3>Unmasked side by side</h3>
+              <img src="{html.escape(rel(diff.get('unmaskedSideBySideImage'), out_dir))}" alt="{html.escape(item['label'])} unmasked side by side">
+              <h3>Heatmap</h3>
+              <img src="{html.escape(rel(diff['heatmapImage'], out_dir))}" alt="{html.escape(item['label'])} heatmap">
+              <h3>Overlay</h3>
+              <img src="{html.escape(rel(diff['overlayImage'], out_dir))}" alt="{html.escape(item['label'])} overlay">
+              {''.join(zoom_sections)}
+              {''.join(color_sections)}
+              <h3>Content snapshots</h3>
+              <ul>
+                <li>Reference JSON: <code>{html.escape(rel(item['reference'].get('content', {}).get('json'), out_dir))}</code></li>
+                <li>Reference text: <code>{html.escape(rel(item['reference'].get('content', {}).get('text'), out_dir))}</code></li>
+                <li>Reference HTML: <code>{html.escape(rel(item['reference'].get('content', {}).get('html'), out_dir))}</code></li>
+                <li>Unmasked reference screenshot: <code>{html.escape(rel(item['reference'].get('unmaskedScreenshot'), out_dir))}</code></li>
+                <li>Candidate JSON: <code>{html.escape(rel(item['candidate'].get('content', {}).get('json'), out_dir))}</code></li>
+                <li>Candidate text: <code>{html.escape(rel(item['candidate'].get('content', {}).get('text'), out_dir))}</code></li>
+                <li>Candidate HTML: <code>{html.escape(rel(item['candidate'].get('content', {}).get('html'), out_dir))}</code></li>
+                <li>Unmasked candidate screenshot: <code>{html.escape(rel(item['candidate'].get('unmaskedScreenshot'), out_dir))}</code></li>
+              </ul>
+            </section>
+            """
+        )
+
+    html_doc = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Visual Diff Report</title>
+  <style>
+    body {{ margin: 24px; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #111; background: #f6f6f6; }}
+    code {{ background: #eee; padding: 2px 4px; border-radius: 4px; }}
+    table {{ border-collapse: collapse; width: 100%; background: white; margin: 16px 0 28px; }}
+    th, td {{ border: 1px solid #ddd; padding: 8px 10px; text-align: left; }}
+    th {{ background: #191919; color: white; }}
+    section {{ margin: 28px 0; padding: 18px; background: white; border: 1px solid #ddd; }}
+    img {{ display: block; width: 100%; max-width: none; height: auto; border: 1px solid #ccc; background: white; }}
+  </style>
+</head>
+<body>
+  <h1>Visual Diff Report</h1>
+  <p><strong>Reference:</strong> {html.escape(report['referenceUrl'])}</p>
+  <p><strong>Candidate:</strong> {html.escape(report['candidateUrl'])}</p>
+  <p><strong>Created:</strong> {html.escape(report['createdAt'])}</p>
+  <p><strong>Output:</strong> <code>{html.escape(str(out_dir))}</code></p>
+  <table>
+    <thead><tr><th>Viewport</th><th>Reference</th><th>Candidate</th><th>Mismatch</th><th>SSIM</th><th>Same size</th></tr></thead>
+    <tbody>{''.join(rows)}</tbody>
+  </table>
+  {''.join(sections)}
+</body>
+</html>
+"""
+    html_path.write_text(html_doc, encoding="utf-8")
+
+
+def device_specs(playwright: Any, names: list[str]) -> list[tuple[ViewportSpec, dict[str, Any]]]:
+    specs = []
+    for name in names:
+        if name not in playwright.devices:
+            available = ", ".join(sorted(playwright.devices.keys())[:20])
+            raise ValueError(f"Unknown device '{name}'. Example available devices: {available}")
+        device = dict(playwright.devices[name])
+        viewport = device.get("viewport") or {"width": 390, "height": 844}
+        dpr = float(device.get("device_scale_factor", 1))
+        specs.append(
+            (
+                ViewportSpec(
+                    label=safe_slug(name),
+                    width=int(viewport["width"]),
+                    height=int(viewport["height"]),
+                    dpr=dpr,
+                    device_name=name,
+                ),
+                device,
+            )
+        )
+    return specs
+
+
+def main() -> int:
+    args = parse_args()
+    out_dir = Path(args.out).expanduser().resolve() if args.out else default_output_dir()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.viewport:
+        viewport_specs = [parse_viewport(v) for v in args.viewport]
+    elif args.device:
+        viewport_specs = []
+    else:
+        viewport_specs = [parse_viewport(v) for v in DEFAULT_VIEWPORTS]
+    report: dict[str, Any] = {
+        "createdAt": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "referenceUrl": args.reference,
+        "candidateUrl": args.candidate,
+        "outputDir": str(out_dir),
+        "fullPage": not args.viewport_only,
+        "settings": {
+            "waitUntil": args.wait_until,
+            "waitMs": args.wait_ms,
+            "lazyScroll": args.lazy_scroll,
+            "lazyScrollStep": args.lazy_scroll_step,
+            "lazyScrollWaitMs": args.lazy_scroll_wait_ms,
+            "lazyScrollImageTimeoutMs": args.lazy_scroll_image_timeout_ms,
+            "timeoutMs": args.timeout_ms,
+            "navigationRetries": args.navigation_retries,
+            "captureRetries": args.capture_retries,
+            "allowNavigationError": args.allow_navigation_error,
+            "referenceImageDir": args.reference_image_dir,
+            "candidateImageDir": args.candidate_image_dir,
+            "threshold": args.threshold,
+            "dismissCycles": args.dismiss_cycles,
+            "dismissWaitMs": args.dismiss_wait_ms,
+            "colorScheme": args.color_scheme,
+            "locale": args.locale,
+            "timezone": args.timezone,
+            "storageState": args.storage_state,
+            "referenceStorageState": args.reference_storage_state,
+            "candidateStorageState": args.candidate_storage_state,
+            "screenshotScale": args.screenshot_scale,
+            "dismissSelectors": args.dismiss,
+            "dismissText": args.dismiss_text,
+            "waitForSelectors": args.wait_for,
+            "waitForText": args.wait_for_text,
+            "referenceWaitForSelectors": args.reference_wait_for,
+            "referenceWaitForText": args.reference_wait_for_text,
+            "candidateWaitForSelectors": args.candidate_wait_for,
+            "candidateWaitForText": args.candidate_wait_for_text,
+            "waitForTimeoutMs": args.wait_for_timeout_ms,
+            "failOnWaitTimeout": args.fail_on_wait_timeout,
+            "hoverSelectors": args.hover,
+            "referenceHoverSelectors": args.reference_hover,
+            "candidateHoverSelectors": args.candidate_hover,
+            "hoverWaitMs": args.hover_wait_ms,
+            "hoverStabilityProbeSelectors": args.hover_stability_probe,
+            "hoverStabilityMs": args.hover_stability_ms,
+            "scrollY": args.scroll_y,
+            "referenceScrollY": args.reference_scroll_y,
+            "candidateScrollY": args.candidate_scroll_y,
+            "scrollWaitMs": args.scroll_wait_ms,
+            "hideSelectors": args.hide,
+            "maskSelectors": args.mask,
+            "maskRects": args.mask_rect,
+            "clipSelector": args.clip_selector,
+            "referenceClipSelector": args.reference_clip_selector,
+            "candidateClipSelector": args.candidate_clip_selector,
+            "zoomRects": args.zoom_rect,
+            "zoomScale": args.zoom_scale,
+            "colorPicks": args.color_pick,
+            "colorPickRects": args.color_pick_rect,
+            "colorPickTop": args.color_pick_top,
+            "colorPickQuantum": args.color_pick_quantum,
+            "freezeAnimations": args.freeze_animations,
+        },
+        "viewports": [],
+    }
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        all_specs: list[tuple[ViewportSpec, dict[str, Any] | None]] = [(spec, None) for spec in viewport_specs]
+        all_specs.extend(device_specs(playwright, args.device))
+        for spec, device in all_specs:
+            print(f"Capturing {spec.label} ({spec.width}x{spec.height}@{spec.dpr:g})", flush=True)
+            if args.reference_image_dir:
+                reference = image_only_capture(spec, "reference", args.reference_image_dir, out_dir, args.reference)
+            else:
+                reference = capture_page(browser, args.reference, spec, "reference", out_dir, args, device=device)
+
+            if args.candidate_image_dir:
+                candidate = image_only_capture(spec, "candidate", args.candidate_image_dir, out_dir, args.candidate)
+            else:
+                candidate = capture_page(browser, args.candidate, spec, "candidate", out_dir, args, device=device)
+            diff = compare_images(Path(reference["screenshot"]), Path(candidate["screenshot"]), spec, out_dir, args)
+            if reference.get("unmaskedScreenshot") and candidate.get("unmaskedScreenshot"):
+                diff["unmaskedSideBySideImage"] = make_unmasked_side_by_side(
+                    Path(reference["unmaskedScreenshot"]),
+                    Path(candidate["unmaskedScreenshot"]),
+                    spec,
+                    out_dir,
+                    args,
+                )
+            report["viewports"].append(
+                {
+                    "label": spec.label,
+                    "width": spec.width,
+                    "height": spec.height,
+                    "dpr": spec.dpr,
+                    "deviceName": spec.device_name,
+                    "reference": reference,
+                    "candidate": candidate,
+                    "diff": diff,
+                }
+            )
+        browser.close()
+
+    write_reports(report, out_dir)
+
+    worst = max((item["diff"]["mismatchPercent"] for item in report["viewports"]), default=0.0)
+    print(f"Visual diff report: {out_dir / 'report.html'}")
+    print(f"JSON report: {out_dir / 'report.json'}")
+    print(f"Worst mismatch: {worst:.4f}%")
+
+    if args.max_mismatch is not None and worst > args.max_mismatch:
+        print(f"Worst mismatch exceeds --max-mismatch {args.max_mismatch:.4f}%", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
