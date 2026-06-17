@@ -12,10 +12,12 @@ Use this skill only when the Railway-linked service has a failed deployment to i
 1. Connect to Railway and identify the exact failed deployment first.
    Use deployment-specific status and logs, not just the latest successful-looking output.
    If there is no failed Railway deployment, say so and stop.
+   For old failures with missing runtime logs, use `railway deployment list --json` on the deployment ID; `meta.configFile` and `meta.serviceManifest.deploy` can show whether `railway.json` was applied.
 
 2. Read the full logs for that failed deployment.
    Check build logs and deploy/runtime logs for the same deployment ID.
    Prefer full logs over filtered snippets when the failure stage is unclear.
+   When logs may contain dashboard URLs or tokens, redact secret-looking query params and environment values before printing them into the transcript.
 
 3. Reproduce the failing step locally with the same command Railway uses.
    For this repo, prefer exact commands such as `pnpm install --frozen-lockfile --prefer-offline`, `pnpm run build`, and any relevant start/runtime checks.
