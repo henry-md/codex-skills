@@ -378,3 +378,397 @@ def freeze_animations(page: Any) -> None:
         pass
 
 
+def prepare_page(page: Any, url: str, role: str, args: argparse.Namespace) -> dict[str, Any]:
+    response_status = None
+    response_error = None
+    attempts = max(1, args.navigation_retries + 1)
+    for attempt in range(1, attempts + 1):
+        response_error = None
+        try:
+            response = page.goto(url, wait_until=args.wait_until, timeout=args.timeout_ms)
+            if response is not None:
+                response_status = response.status
+            break
+        except PlaywrightTimeoutError as exc:
+            response_error = f"timeout: {exc}"
+        except Exception as exc:
+            response_error = f"{type(exc).__name__}: {exc}"
+
+        if attempt < attempts:
+            page.wait_for_timeout(1000 * attempt)
+
+    if response_error and not args.allow_navigation_error:
+        raise RuntimeError(f"Navigation failed for {url}: {response_error}")
+
+    if args.freeze_animations:
+        freeze_animations(page)
+
+    page.wait_for_timeout(max(0, args.wait_ms))
+
+    clicked = dismiss_page(page, args)
+    hidden = hide_page(page, args)
+
+    page.wait_for_timeout(max(0, args.wait_ms))
+
+    waited_for: list[dict[str, str]] = []
+    wait_for_selectors = list(args.wait_for)
+    wait_for_text = list(args.wait_for_text)
+    if role == "reference":
+        wait_for_selectors.extend(args.reference_wait_for)
+        wait_for_text.extend(args.reference_wait_for_text)
+    else:
+        wait_for_selectors.extend(args.candidate_wait_for)
+        wait_for_text.extend(args.candidate_wait_for_text)
+
+    for selector in wait_for_selectors:
+        try:
+            page.locator(selector).first.wait_for(state="visible", timeout=max(0, args.wait_for_timeout_ms))
+            waited_for.append({"selector": selector, "status": "visible"})
+        except Exception as exc:
+            waited_for.append({"selector": selector, "status": f"missing:{type(exc).__name__}"})
+
+    for text in wait_for_text:
+        try:
+            page.get_by_text(text).first.wait_for(state="visible", timeout=max(0, args.wait_for_timeout_ms))
+            waited_for.append({"text": text, "status": "visible"})
+        except Exception as exc:
+            waited_for.append({"text": text, "status": f"missing:{type(exc).__name__}"})
+
+    if args.fail_on_wait_timeout:
+        missing_waits = [item for item in waited_for if item.get("status", "").startswith("missing:")]
+        if missing_waits:
+            raise RuntimeError(f"Wait condition failed for {url}: {json.dumps(missing_waits)}")
+
+    return {
+        "status": response_status,
+        "error": response_error,
+        "final_url": page.url,
+        "title": safe_eval(page, "() => document.title"),
+        "clicked": clicked,
+        "hidden": hidden,
+        "waitedFor": waited_for,
+    }
+
+
+def safe_eval(page: Any, script: str) -> Any:
+    try:
+        return page.evaluate(script)
+    except Exception:
+        return None
+
+
+def lazy_scroll_page(page: Any, args: argparse.Namespace) -> dict[str, Any]:
+    if args.viewport_only or not args.lazy_scroll:
+        return {"enabled": False}
+
+    initial = safe_eval(
+        page,
+        """
+        () => ({
+          scrollHeight: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
+          innerHeight: window.innerHeight,
+          imageCount: document.images.length,
+          completeImages: Array.from(document.images).filter(img => img.complete).length
+        })
+        """,
+    ) or {}
+    step = max(1, int(args.lazy_scroll_step))
+    wait_ms = max(0, int(args.lazy_scroll_wait_ms))
+    positions: list[int] = []
+    y = 0
+    last_max_scroll = -1
+
+    for _ in range(1000):
+        metrics = safe_eval(
+            page,
+            """
+            () => ({
+              scrollHeight: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
+              innerHeight: window.innerHeight
+            })
+            """,
+        ) or {}
+        scroll_height = int(metrics.get("scrollHeight") or 0)
+        inner_height = int(metrics.get("innerHeight") or 0)
+        max_scroll = max(0, scroll_height - inner_height)
+        if max_scroll == last_max_scroll and y > max_scroll:
+            break
+        last_max_scroll = max_scroll
+        next_y = min(y, max_scroll)
+        if not positions or positions[-1] != next_y:
+            positions.append(next_y)
+            try:
+                page.evaluate("(scrollY) => window.scrollTo(0, scrollY)", next_y)
+            except Exception:
+                pass
+            page.wait_for_timeout(wait_ms)
+        if y >= max_scroll:
+            break
+        y += step
+
+    try:
+        page.wait_for_function(
+            "() => Array.from(document.images).every(img => img.complete)",
+            timeout=max(0, int(args.lazy_scroll_image_timeout_ms)),
+        )
+    except Exception:
+        pass
+
+    decode_error = None
+    try:
+        page.evaluate(
+            """
+            async () => {
+              await Promise.allSettled(
+                Array.from(document.images).map(img => img.decode ? img.decode() : Promise.resolve())
+              );
+            }
+            """
+        )
+    except Exception as exc:
+        decode_error = f"{type(exc).__name__}: {exc}"
+
+    try:
+        page.evaluate("() => window.scrollTo(0, 0)")
+    except Exception:
+        pass
+    page.wait_for_timeout(max(wait_ms, 100))
+
+    final = safe_eval(
+        page,
+        """
+        () => {
+          const images = Array.from(document.images);
+          return {
+            scrollHeight: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
+            innerHeight: window.innerHeight,
+            imageCount: images.length,
+            completeImages: images.filter(img => img.complete).length,
+            decodedOrEmptyImages: images.filter(img => !img.currentSrc || img.naturalWidth > 0).length,
+            incompleteImages: images
+              .filter(img => !img.complete || (img.currentSrc && img.naturalWidth === 0))
+              .slice(0, 20)
+              .map(img => ({ src: img.currentSrc || img.src || null, alt: img.alt || null }))
+          };
+        }
+        """,
+    ) or {}
+
+    return {
+        "enabled": True,
+        "step": step,
+        "waitMs": wait_ms,
+        "positions": len(positions),
+        "initial": initial,
+        "final": final,
+        "decodeError": decode_error,
+    }
+
+
+def hover_page(page: Any, role: str, args: argparse.Namespace) -> list[dict[str, Any]]:
+    selectors = list(args.hover)
+    selectors.extend(args.reference_hover if role == "reference" else args.candidate_hover)
+    hovered: list[dict[str, Any]] = []
+    for selector in selectors:
+        locator = page.locator(selector).first
+        try:
+            locator.wait_for(state="visible", timeout=max(0, args.wait_for_timeout_ms))
+            box = locator.bounding_box(timeout=max(0, args.wait_for_timeout_ms))
+            if not box:
+                raise RuntimeError("visible element has no bounding box")
+            x = box["x"] + box["width"] / 2
+            y = box["y"] + box["height"] / 2
+            page.mouse.move(x, y)
+            page.wait_for_timeout(max(0, args.hover_wait_ms))
+            hovered.append(
+                {
+                    "selector": selector,
+                    "status": "hovered",
+                    "x": round(x, 2),
+                    "y": round(y, 2),
+                }
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Hover failed for {role} selector '{selector}': {type(exc).__name__}: {exc}") from exc
+    return hovered
+
+
+def scroll_page(page: Any, role: str, args: argparse.Namespace) -> dict[str, Any]:
+    scroll_y = args.reference_scroll_y if role == "reference" else args.candidate_scroll_y
+    scroll_y = args.scroll_y if scroll_y is None else scroll_y
+    if scroll_y is None:
+        return {"enabled": False}
+    try:
+        page.evaluate("(y) => window.scrollTo(0, y)", int(scroll_y))
+        page.wait_for_timeout(max(0, args.scroll_wait_ms))
+        actual_y = safe_eval(page, "() => Math.round(window.scrollY)")
+        return {"enabled": True, "requestedY": int(scroll_y), "actualY": actual_y, "waitMs": args.scroll_wait_ms}
+    except Exception as exc:
+        raise RuntimeError(f"Pre-capture scroll failed for {role}: {type(exc).__name__}: {exc}") from exc
+
+
+def sample_hover_stability(page: Any, args: argparse.Namespace) -> list[dict[str, Any]]:
+    if not args.hover_stability_probe or args.hover_stability_ms <= 0:
+        return []
+
+    def sample(selector: str) -> dict[str, Any]:
+        return page.locator(selector).first.evaluate(
+            """
+            el => {
+              const rect = el.getBoundingClientRect();
+              const style = getComputedStyle(el);
+              return {
+                x: Math.round((rect.left + window.scrollX) * 100) / 100,
+                y: Math.round((rect.top + window.scrollY) * 100) / 100,
+                width: Math.round(rect.width * 100) / 100,
+                height: Math.round(rect.height * 100) / 100,
+                transform: style.transform,
+                animationPlayState: style.animationPlayState,
+                color: style.color
+              };
+            }
+            """
+        )
+
+    before: dict[str, dict[str, Any]] = {}
+    for selector in args.hover_stability_probe:
+        try:
+            page.locator(selector).first.wait_for(state="visible", timeout=max(0, args.wait_for_timeout_ms))
+            before[selector] = sample(selector)
+        except Exception as exc:
+            before[selector] = {"error": f"{type(exc).__name__}: {exc}"}
+
+    page.wait_for_timeout(max(0, args.hover_stability_ms))
+
+    results: list[dict[str, Any]] = []
+    for selector in args.hover_stability_probe:
+        first = before.get(selector) or {}
+        try:
+            second = sample(selector)
+        except Exception as exc:
+            second = {"error": f"{type(exc).__name__}: {exc}"}
+        dx = None
+        dy = None
+        if "x" in first and "x" in second:
+            dx = round(float(second["x"]) - float(first["x"]), 2)
+            dy = round(float(second["y"]) - float(first["y"]), 2)
+        results.append(
+            {
+                "selector": selector,
+                "waitMs": args.hover_stability_ms,
+                "before": first,
+                "after": second,
+                "deltaX": dx,
+                "deltaY": dy,
+                "transformStable": first.get("transform") == second.get("transform"),
+            }
+        )
+    return results
+
+
+def collect_mask_boxes(page: Any, selectors: list[str], fixed_rects: list[dict[str, float]]) -> list[dict[str, float]]:
+    boxes = list(fixed_rects)
+    for selector in selectors:
+        try:
+            found = page.locator(selector).evaluate_all(
+                """
+                els => els.map(el => {
+                  const rect = el.getBoundingClientRect();
+                  return {
+                    x: rect.left + window.scrollX,
+                    y: rect.top + window.scrollY,
+                    width: rect.width,
+                    height: rect.height
+                  };
+                }).filter(r => r.width > 0 && r.height > 0)
+                """
+            )
+            for box in found:
+                box["selector"] = selector
+                boxes.append(box)
+        except Exception:
+            boxes.append({"selector": selector, "error": "selector lookup failed", "x": 0, "y": 0, "width": 0, "height": 0})
+    return boxes
+
+
+def apply_masks(image_path: Path, boxes: list[dict[str, float]], mask_color: str = MASK_COLOR) -> None:
+    if not boxes:
+        return
+    image = Image.open(image_path).convert("RGB")
+    draw = ImageDraw.Draw(image)
+    fill = hex_to_rgb(mask_color)
+    width, height = image.size
+    for box in boxes:
+        x = int(round(float(box.get("x", 0))))
+        y = int(round(float(box.get("y", 0))))
+        w = int(round(float(box.get("width", 0))))
+        h = int(round(float(box.get("height", 0))))
+        if w <= 0 or h <= 0:
+            continue
+        left = max(0, x)
+        top = max(0, y)
+        right = min(width, x + w)
+        bottom = min(height, y + h)
+        if right <= left or bottom <= top:
+            continue
+        draw.rectangle([left, top, right, bottom], fill=fill)
+    image.save(image_path)
+
+
+def resolve_clip_box(page: Any, role: str, args: argparse.Namespace) -> tuple[dict[str, float] | None, dict[str, Any] | None]:
+    selector = args.reference_clip_selector if role == "reference" else args.candidate_clip_selector
+    selector = selector or args.clip_selector
+    if not selector:
+        return None, None
+    try:
+        locator = page.locator(selector).first
+        locator.wait_for(state="visible", timeout=max(0, args.wait_for_timeout_ms))
+        box = locator.bounding_box(timeout=max(0, args.wait_for_timeout_ms))
+        if not box:
+            raise RuntimeError("visible element has no bounding box")
+        scroll = safe_eval(page, "() => ({ x: window.scrollX, y: window.scrollY })") or {"x": 0, "y": 0}
+        clip = {
+            "x": max(0, float(box["x"])),
+            "y": max(0, float(box["y"])),
+            "width": max(1, float(box["width"])),
+            "height": max(1, float(box["height"])),
+        }
+        meta = {
+            "selector": selector,
+            "x": round(clip["x"], 2),
+            "y": round(clip["y"], 2),
+            "width": round(clip["width"], 2),
+            "height": round(clip["height"], 2),
+            "docX": round(float(box["x"]) + float(scroll.get("x") or 0), 2),
+            "docY": round(float(box["y"]) + float(scroll.get("y") or 0), 2),
+        }
+        return clip, meta
+    except Exception as exc:
+        raise RuntimeError(f"Clip selector failed for {role} selector '{selector}': {type(exc).__name__}: {exc}") from exc
+
+
+def clip_mask_boxes(boxes: list[dict[str, float]], clip_meta: dict[str, Any] | None) -> list[dict[str, float]]:
+    if not clip_meta:
+        return boxes
+    clipped: list[dict[str, float]] = []
+    clip_x = float(clip_meta["docX"])
+    clip_y = float(clip_meta["docY"])
+    clip_w = float(clip_meta["width"])
+    clip_h = float(clip_meta["height"])
+    for box in boxes:
+        x = float(box.get("x", 0)) - clip_x
+        y = float(box.get("y", 0)) - clip_y
+        w = float(box.get("width", 0))
+        h = float(box.get("height", 0))
+        left = max(0, x)
+        top = max(0, y)
+        right = min(clip_w, x + w)
+        bottom = min(clip_h, y + h)
+        if right <= left or bottom <= top:
+            continue
+        clipped_box = dict(box)
+        clipped_box.update({"x": left, "y": top, "width": right - left, "height": bottom - top})
+        clipped.append(clipped_box)
+    return clipped
+
+
