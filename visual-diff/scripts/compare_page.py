@@ -772,3 +772,353 @@ def clip_mask_boxes(boxes: list[dict[str, float]], clip_meta: dict[str, Any] | N
     return clipped
 
 
+def collect_dom_audit(page: Any) -> dict[str, Any]:
+    return safe_eval(
+        page,
+        """
+        () => {
+          const visible = el => {
+            const r = el.getBoundingClientRect();
+            const s = getComputedStyle(el);
+            return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
+          };
+          const elements = Array.from(document.querySelectorAll('body *')).filter(visible).slice(0, 800).map((el, index) => {
+            const r = el.getBoundingClientRect();
+            const s = getComputedStyle(el);
+            return {
+              index,
+              tag: el.tagName.toLowerCase(),
+              id: el.id || null,
+              className: String(el.className || '').slice(0, 160),
+              text: (el.innerText || el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 220),
+              src: el.currentSrc || el.src || null,
+              href: el.href || null,
+              x: Math.round((r.left + window.scrollX) * 100) / 100,
+              y: Math.round((r.top + window.scrollY) * 100) / 100,
+              width: Math.round(r.width * 100) / 100,
+              height: Math.round(r.height * 100) / 100,
+              fontFamily: s.fontFamily,
+              fontSize: s.fontSize,
+              fontWeight: s.fontWeight,
+              lineHeight: s.lineHeight,
+              color: s.color,
+              backgroundColor: s.backgroundColor,
+              display: s.display,
+              position: s.position
+            };
+          });
+          return {
+            title: document.title,
+            url: location.href,
+            devicePixelRatio: window.devicePixelRatio,
+            innerWidth: window.innerWidth,
+            innerHeight: window.innerHeight,
+            visualViewport: window.visualViewport ? {
+              width: Math.round(window.visualViewport.width * 100) / 100,
+              height: Math.round(window.visualViewport.height * 100) / 100,
+              scale: window.visualViewport.scale,
+              offsetLeft: Math.round(window.visualViewport.offsetLeft * 100) / 100,
+              offsetTop: Math.round(window.visualViewport.offsetTop * 100) / 100
+            } : null,
+            scrollWidth: document.documentElement.scrollWidth,
+            scrollHeight: document.documentElement.scrollHeight,
+            bodyText: (document.body.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 8000),
+            elements
+          };
+        }
+        """,
+    ) or {}
+
+
+def collect_page_content(page: Any) -> dict[str, Any]:
+    content = safe_eval(
+        page,
+        """
+        () => {
+          const attr = (el, name) => el.getAttribute(name);
+          const absolute = value => {
+            if (!value) return null;
+            try { return new URL(value, location.href).href; } catch { return value; }
+          };
+          const meta = Array.from(document.querySelectorAll('meta')).map(el => ({
+            name: attr(el, 'name'),
+            property: attr(el, 'property'),
+            content: attr(el, 'content')
+          })).filter(item => item.name || item.property || item.content);
+          const headings = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6')).map(el => ({
+            level: el.tagName.toLowerCase(),
+            text: (el.innerText || el.textContent || '').trim().replace(/\\s+/g, ' ')
+          })).filter(item => item.text);
+          const links = Array.from(document.querySelectorAll('a[href]')).map(el => ({
+            text: (el.innerText || el.textContent || '').trim().replace(/\\s+/g, ' '),
+            href: absolute(attr(el, 'href')),
+            target: attr(el, 'target')
+          }));
+          const images = Array.from(document.querySelectorAll('img')).map(el => ({
+            alt: attr(el, 'alt'),
+            src: absolute(el.currentSrc || attr(el, 'src')),
+            srcset: attr(el, 'srcset'),
+            width: el.naturalWidth || null,
+            height: el.naturalHeight || null,
+            renderedWidth: Math.round(el.getBoundingClientRect().width * 100) / 100,
+            renderedHeight: Math.round(el.getBoundingClientRect().height * 100) / 100
+          }));
+          const media = Array.from(document.querySelectorAll('video,audio,iframe,embed,object,source')).map(el => ({
+            tag: el.tagName.toLowerCase(),
+            title: attr(el, 'title'),
+            src: absolute(attr(el, 'src') || attr(el, 'data-src')),
+            type: attr(el, 'type')
+          }));
+          const stylesheets = Array.from(document.querySelectorAll('link[rel~="stylesheet"], link[as="style"]')).map(el => ({
+            href: absolute(attr(el, 'href')),
+            media: attr(el, 'media')
+          }));
+          const scripts = Array.from(document.querySelectorAll('script[src]')).map(el => ({
+            src: absolute(attr(el, 'src')),
+            type: attr(el, 'type'),
+            async: el.async,
+            defer: el.defer
+          }));
+          return {
+            title: document.title,
+            url: location.href,
+            canonical: document.querySelector('link[rel="canonical"]')?.href || null,
+            lang: document.documentElement.lang || null,
+            meta,
+            headings,
+            links,
+            images,
+            media,
+            stylesheets,
+            scripts,
+            text: (document.body.innerText || '').replace(/\\s+\\n/g, '\\n').trim()
+          };
+        }
+        """,
+    ) or {}
+    try:
+        content["html"] = page.content()
+    except Exception:
+        content["html"] = None
+    return content
+
+
+def _capture_page_once(
+    browser: Any,
+    url: str,
+    spec: ViewportSpec,
+    role: str,
+    out_dir: Path,
+    args: argparse.Namespace,
+    device: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    context = browser.new_context(**context_kwargs(spec, args, role=role, device=device))
+    page = context.new_page()
+    prep = prepare_page(page, url, role, args)
+    prep["lazyScroll"] = lazy_scroll_page(page, args)
+    prep["postLazyDismissed"] = dismiss_page(page, args)
+    prep["postLazyHidden"] = hide_page(page, args)
+    prep["scroll"] = scroll_page(page, role, args)
+    prep["hovered"] = hover_page(page, role, args)
+    prep["hoverStability"] = sample_hover_stability(page, args)
+    clip_box, clip_meta = resolve_clip_box(page, role, args)
+    mask_boxes = clip_mask_boxes(collect_mask_boxes(page, args.mask, fixed_mask_rects(args.mask_rect)), clip_meta)
+
+    screenshot_path = out_dir / f"{spec.label}-{role}.png"
+    page.screenshot(
+        path=str(screenshot_path),
+        full_page=False if clip_box else not args.viewport_only,
+        clip=clip_box,
+        scale=args.screenshot_scale,
+        animations="disabled" if args.freeze_animations else "allow",
+    )
+    unmasked_screenshot_path = out_dir / f"{spec.label}-{role}-unmasked.png"
+    shutil.copyfile(screenshot_path, unmasked_screenshot_path)
+    apply_masks(screenshot_path, mask_boxes)
+
+    audit_path = None
+    audit_summary = None
+    content_paths: dict[str, str] = {}
+    content_summary = None
+    if not args.no_dom_audit:
+        audit = collect_dom_audit(page)
+        audit_path = out_dir / f"{spec.label}-{role}-dom.json"
+        audit_path.write_text(json.dumps(audit, indent=2), encoding="utf-8")
+        audit_summary = {
+            "title": audit.get("title"),
+            "url": audit.get("url"),
+            "devicePixelRatio": audit.get("devicePixelRatio"),
+            "innerWidth": audit.get("innerWidth"),
+            "innerHeight": audit.get("innerHeight"),
+            "visualViewport": audit.get("visualViewport"),
+            "scrollWidth": audit.get("scrollWidth"),
+            "scrollHeight": audit.get("scrollHeight"),
+            "elementCount": len(audit.get("elements", [])),
+        }
+
+    page_content = collect_page_content(page)
+    content_json_path = out_dir / f"{spec.label}-{role}-content.json"
+    content_text_path = out_dir / f"{spec.label}-{role}-text.txt"
+    content_html_path = out_dir / f"{spec.label}-{role}.html"
+    html_content = page_content.pop("html", None)
+    content_json_path.write_text(json.dumps(page_content, indent=2), encoding="utf-8")
+    content_text_path.write_text(page_content.get("text") or "", encoding="utf-8")
+    if html_content is not None:
+        content_html_path.write_text(html_content, encoding="utf-8")
+    content_paths = {
+        "json": str(content_json_path),
+        "text": str(content_text_path),
+        "html": str(content_html_path) if html_content is not None else "",
+    }
+    content_summary = {
+        "title": page_content.get("title"),
+        "url": page_content.get("url"),
+        "headingCount": len(page_content.get("headings", [])),
+        "linkCount": len(page_content.get("links", [])),
+        "imageCount": len(page_content.get("images", [])),
+        "mediaCount": len(page_content.get("media", [])),
+        "stylesheetCount": len(page_content.get("stylesheets", [])),
+        "scriptCount": len(page_content.get("scripts", [])),
+        "textLength": len(page_content.get("text") or ""),
+    }
+
+    image_size = Image.open(screenshot_path).size
+    context.close()
+    return {
+        "url": url,
+        "screenshot": str(screenshot_path),
+        "unmaskedScreenshot": str(unmasked_screenshot_path),
+        "domAudit": str(audit_path) if audit_path else None,
+        "domSummary": audit_summary,
+        "content": content_paths,
+        "contentSummary": content_summary,
+        "imageWidth": image_size[0],
+        "imageHeight": image_size[1],
+        "maskBoxes": mask_boxes,
+        "clip": clip_meta,
+        **prep,
+    }
+
+
+def capture_page(
+    browser: Any,
+    url: str,
+    spec: ViewportSpec,
+    role: str,
+    out_dir: Path,
+    args: argparse.Namespace,
+    device: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    attempts = max(1, int(args.capture_retries) + 1)
+    errors: list[str] = []
+    for attempt in range(1, attempts + 1):
+        try:
+            return _capture_page_once(browser, url, spec, role, out_dir, args, device=device)
+        except Exception as exc:
+            message = f"{type(exc).__name__}: {exc}"
+            errors.append(message)
+            if attempt < attempts:
+                print(
+                    f"Retrying {role} capture for {spec.label} after failed attempt {attempt}/{attempts}: {message}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                continue
+            raise RuntimeError(f"Capture failed for {role} {spec.label} {url} after {attempts} attempts: {errors}") from exc
+
+
+def image_only_capture(
+    spec: ViewportSpec,
+    role: str,
+    source_dir: str,
+    out_dir: Path,
+    url: str,
+) -> dict[str, Any]:
+    source_root = Path(source_dir).expanduser().resolve()
+    candidates = [
+        source_root / f"{spec.label}-{role}.png",
+        source_root / f"{spec.label}.png",
+        source_root / f"{spec.label}-reference.png",
+        source_root / f"{spec.label}-candidate.png",
+    ]
+    source_path = next((candidate for candidate in candidates if candidate.exists()), None)
+    if source_path is None:
+        wanted = ", ".join(str(candidate) for candidate in candidates)
+        raise FileNotFoundError(f"No pre-captured {role} image for viewport '{spec.label}'. Tried: {wanted}")
+
+    target_path = out_dir / f"{spec.label}-{role}.png"
+    if source_path.resolve() != target_path.resolve():
+        shutil.copyfile(source_path, target_path)
+    unmasked_target_path = out_dir / f"{spec.label}-{role}-unmasked.png"
+    if source_path.resolve() != unmasked_target_path.resolve():
+        shutil.copyfile(source_path, unmasked_target_path)
+    image_size = Image.open(target_path).size
+    return {
+        "url": url,
+        "screenshot": str(target_path),
+        "unmaskedScreenshot": str(unmasked_target_path),
+        "domAudit": None,
+        "domSummary": None,
+        "content": {},
+        "contentSummary": None,
+        "imageWidth": image_size[0],
+        "imageHeight": image_size[1],
+        "maskBoxes": [],
+        "status": None,
+        "error": None,
+        "final_url": url,
+        "title": None,
+        "clicked": [],
+        "sourceImage": str(source_path),
+    }
+
+
+def padded_rgb(path: Path, size: tuple[int, int], background: str) -> Image.Image:
+    image = Image.open(path).convert("RGB")
+    canvas = Image.new("RGB", size, hex_to_rgb(background))
+    canvas.paste(image, (0, 0))
+    return canvas
+
+
+def estimate_ssim(gray_a: np.ndarray, gray_b: np.ndarray) -> float:
+    a = gray_a.astype(np.float64)
+    b = gray_b.astype(np.float64)
+    mu_a = a.mean()
+    mu_b = b.mean()
+    var_a = a.var()
+    var_b = b.var()
+    cov = ((a - mu_a) * (b - mu_b)).mean()
+    c1 = (0.01 * 255) ** 2
+    c2 = (0.03 * 255) ** 2
+    denominator = (mu_a**2 + mu_b**2 + c1) * (var_a + var_b + c2)
+    if denominator == 0:
+        return 1.0 if np.array_equal(gray_a, gray_b) else 0.0
+    return float(((2 * mu_a * mu_b + c1) * (2 * cov + c2)) / denominator)
+
+
+def make_heatmap(max_delta: np.ndarray, threshold: int) -> Image.Image:
+    delta = max_delta.astype(np.float32)
+    intensity = np.clip(delta * 3.0, 0, 255).astype(np.uint8)
+    heat = np.zeros((*max_delta.shape, 3), dtype=np.uint8)
+    heat[..., 0] = 255
+    heat[..., 1] = np.clip(255 - intensity, 0, 255)
+    heat[..., 2] = np.clip(255 - delta * 6.0, 0, 255).astype(np.uint8)
+    background = np.full((*max_delta.shape, 3), 255, dtype=np.uint8)
+    mask = max_delta > threshold
+    background[mask] = heat[mask]
+    return Image.fromarray(background, mode="RGB")
+
+
+def make_overlay(candidate: Image.Image, max_delta: np.ndarray, threshold: int) -> Image.Image:
+    base = candidate.convert("RGBA")
+    overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    alpha = np.zeros(max_delta.shape, dtype=np.uint8)
+    changed = max_delta > threshold
+    alpha[changed] = np.clip(max_delta[changed].astype(np.uint16) * 2, 96, 220).astype(np.uint8)
+    data = np.zeros((*max_delta.shape, 4), dtype=np.uint8)
+    data[..., 0] = 255
+    data[..., 3] = alpha
+    overlay = Image.fromarray(data, mode="RGBA")
+    return Image.alpha_composite(base, overlay).convert("RGB")
+
+
