@@ -22,12 +22,15 @@ Use this skill when one screenshot is not enough and the job is to first reprodu
    Translate the user's request and the recent chat context into concrete visual, behavioral, and workflow expectations before editing anything.
    Identify the new or changed feature being verified, what user journey it belongs to, and which nearby routes, states, roles, data shapes, responsive sizes, or edge cases could plausibly break because of it.
    Define the metric of success before fixing anything: what screenshot, DOM state, console/network condition, workflow outcome, or artifact evidence would prove the issue is fixed.
+   For visual requests, make the metric concrete enough to fail from a screenshot alone. Name the exact visual relationship that must be visible, such as "badges appear in the same text line as the sentence before them" rather than "badges are compact."
+   Also name at least one screenshot-visible failure condition before editing, such as "badges start on their own row," "large unused blank space remains," "text overflows its container," or "the wrong route/state is captured."
    If there is no observable success metric, stop and explain the missing verification target instead of entering a fix loop.
 
 3. Reproduce the reported issue before editing anything.
    The first job is verification: use the resolved route, state setup, and `$check` capture flow to make the bug happen in the current environment.
    Capture screenshot evidence that shows the reported bug or mismatch. For temporal issues such as loading, streaming, animation, or state transitions, capture enough screenshots to prove the bad progression or stuck state.
    Inspect the screenshot directly in Codex and compare it against the user's report and the success metric.
+   Write a short visual verdict before moving on: "Pass because..." or "Fail because...". The verdict must mention the specific visible evidence in the screenshot, not just that the screenshot exists.
    Do not move on to diagnosis, bug hypotheses, or code changes until you have screenshot evidence reproducing the issue.
    If you cannot reproduce the issue, do not start fixing speculatively. Report what you tried, include the screenshot or direct evidence you captured, and explain what state, data, credentials, route, timing, or environment detail is missing.
 
@@ -53,6 +56,8 @@ Use this skill when one screenshot is not enough and the job is to first reprodu
    Use the same target route unless the request or the product flow clearly requires another route.
    For intermediate passes, you may verify with a fresh screenshot, the full logged-in DOM, Playwright locators, native parsing, or other direct page inspection methods.
    Compare what you observe against the request, the confirmed bug, and the remaining hypotheses, not against your intent.
+   After every screenshot, pause and write the visual verdict against the current success metric before editing or declaring success. If the screenshot contains any of the predeclared failure conditions or another obvious mismatch, treat that as a failed verification cycle and continue the loop.
+   Do not use generated or synthetic evidence screenshots as final proof unless the product state cannot be captured directly; when you must use one, label it as synthetic and still inspect it against the same visual metric.
    For extension UIs, prefer the repo's headless persistent Chromium path plus the extension page surrogate such as `chrome-extension://<extension-id>/index.html` or `options.html` unless the bug is specifically about the docked browser shell.
    If Playwright cannot reach MV3 service workers or extension pages cleanly, use CDP target attachment and keep the loop headless.
 
@@ -63,7 +68,7 @@ Use this skill when one screenshot is not enough and the job is to first reprodu
    Keep moving from the most likely or highest-impact remaining breakage toward less likely edge cases.
 
 9. Repeat until one of two conditions is true.
-   Stop only when a final fresh screenshot shows the requested result closely enough to satisfy the user's ask and the high-impact adjacent-route hypotheses have either been checked or reasonably ruled out.
+   Stop only when a final fresh screenshot shows the requested result closely enough to satisfy the user's ask, the written visual verdict says why it passes, and the high-impact adjacent-route hypotheses have either been checked or reasonably ruled out.
    Otherwise keep looping as long as another reasonable bug hypothesis, route probe, or fix attempt exists.
    If the loop loses its metric of success, stop and re-establish it before making more edits.
 
@@ -78,6 +83,9 @@ Use this skill when one screenshot is not enough and the job is to first reprodu
 ## Operating Rules
 
 - Use screenshots as the source of truth for completion.
+- Screenshots are evidence to inspect, not artifacts to attach. Never claim visual success just because a screenshot was generated.
+- Before declaring a screenshot successful, explicitly compare it to the user's requested visual relationship and the predeclared failure conditions. If a human reviewer could point to the screenshot and say the request is still visibly unmet, the check failed.
+- Prefer tight, relevant screenshots of the actual product route or component state. A screenshot with large unrelated blank space, decorative presentation chrome, or a synthetic layout that hides the product context is not enough for final visual verification unless the user explicitly asked for that artifact.
 - When verifying streaming text, screenshots must prove progression, not just final presence. Capture at least two screenshots from the same stream while it is still in flight: one where the streamed message is partially filled, and a later one where visibly more text has filled. DOM polling, logs, cursor counts, or final screenshots can support the result, but they do not replace those two in-flight screenshots.
 - Treat `/checks` as an active bug-hunting and bug-fixing workflow, not a passive screenshot audit.
 - Let the recent chat context guide what adjacent routes, states, and user journeys deserve probing.
@@ -87,6 +95,7 @@ Use this skill when one screenshot is not enough and the job is to first reprodu
 - Do not add product-code debug fixtures, mock data, routes, buttons, or other verification-only scaffolding just to make the loop easier; keep temporary setup under the `$check` skill runtime.
 - Do not stop after one pass just because the code looks correct.
 - Do not declare success until you have inspected a fresh screenshot from the relevant route.
+- Do not include a final screenshot unless you have just inspected it and can state the specific visible reason it passes.
 - Do not stop just because the primary route looks correct if nearby high-impact hypotheses remain unchecked and are cheap to probe.
 - Headless browsers are the default. Use them first, keep using them when possible, and only escalate to a headed browser when the bug is truly about browser chrome, windowing, or focus behavior that headless Chromium plus Playwright/CDP cannot expose.
 - For unpacked extension automation, prefer bundled Chromium over Google Chrome.
@@ -106,6 +115,7 @@ Use this skill when one screenshot is not enough and the job is to first reprodu
 Always end with one of these outcomes:
 
 - Success: include the route checked, whether the Henry session was reused or refreshed, a short summary of what changed, the most important hypotheses or adjacent routes probed, and an inline screenshot preview using Markdown image syntax with the absolute file path.
+- The success response must also include a one-sentence visual verdict for the final screenshot, naming the visible evidence that satisfies the metric.
 - Blocked: explain why the request could not be completed, what you verified, and what would need to change for the loop to succeed.
 
 When useful, also mention how many edit/check loops and route/state probes you performed.
