@@ -1,0 +1,4 @@
+interface:
+  display_name: "Visual Diff"
+  short_description: "Compare public and local pages pixel-for-pixel"
+  default_prompt: "Use $visual-diff to compare a public reference URL against my local app and show screenshot diffs."
