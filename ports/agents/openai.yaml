@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ports"
+  short_description: "Track localhost app port assignments"
+  default_prompt: "Use $ports to choose or record non-conflicting localhost ports for this project."
