@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Worktree On"
+  short_description: "Use an existing branch worktree"
+  default_prompt: "Use $use-worktree-on new-style-1 before making code changes."
