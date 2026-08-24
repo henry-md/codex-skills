@@ -27,6 +27,48 @@ function readOptionalString(value) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+const transientDatabaseConnectionCodes = new Set([
+  "08000",
+  "08003",
+  "08006",
+  "57P01",
+  "57P02",
+  "57P03",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "P1017",
+]);
+
+function isTransientDatabaseConnectionError(error) {
+  const code =
+    error && typeof error === "object" && typeof error.code === "string"
+      ? error.code
+      : "";
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+
+  return (
+    transientDatabaseConnectionCodes.has(code) ||
+    message.includes("server has closed the connection") ||
+    message.includes("connection terminated unexpectedly") ||
+    message.includes("connection reset by peer")
+  );
+}
+
+// Retries a caller-verified idempotent database operation after a pooled connection drops.
+async function retryTransientDatabaseOperation(operation) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isTransientDatabaseConnectionError(error)) {
+      throw error;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    return operation();
+  }
+}
+
 function buildCookie(baseUrl, sessionToken, expiresAt) {
   const parsed = new URL(baseUrl);
   const secure = parsed.protocol === "https:";
@@ -102,15 +144,17 @@ async function main() {
   }
 
   try {
-    let user = await prisma.user.findFirst({
-      select: { id: true, email: true, name: true },
-      where: {
-        email: {
-          equals: email,
-          mode: "insensitive",
+    let user = await retryTransientDatabaseOperation(() =>
+      prisma.user.findFirst({
+        select: { id: true, email: true, name: true },
+        where: {
+          email: {
+            equals: email,
+            mode: "insensitive",
+          },
         },
-      },
-    });
+      }),
+    );
 
     if (!user?.id) {
       if (!autoCreateUser) {
@@ -133,22 +177,36 @@ async function main() {
     const expires = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 30);
     const sessionToken = crypto.randomBytes(32).toString("hex");
 
-    await prisma.session.deleteMany({
-      where: {
-        userId: user.id,
-        expires: {
-          lt: now,
+    await retryTransientDatabaseOperation(() =>
+      prisma.session.deleteMany({
+        where: {
+          userId: user.id,
+          expires: {
+            lt: now,
+          },
         },
-      },
-    });
+      }),
+    );
 
-    await prisma.session.create({
-      data: {
-        sessionToken,
-        userId: user.id,
-        expires,
-      },
-    });
+    const sessionData = { expires, sessionToken, userId: user.id };
+    try {
+      await prisma.session.create({ data: sessionData });
+    } catch (error) {
+      if (!isTransientDatabaseConnectionError(error)) {
+        throw error;
+      }
+
+      const persistedSession = await retryTransientDatabaseOperation(() =>
+        prisma.session.findUnique({
+          select: { sessionToken: true },
+          where: { sessionToken },
+        }),
+      );
+
+      if (!persistedSession) {
+        await prisma.session.create({ data: sessionData });
+      }
+    }
 
     const storageState = {
       cookies: [buildCookie(baseUrl, sessionToken, expires)],
