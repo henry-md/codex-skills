@@ -1,0 +1,4 @@
+interface:
+  display_name: "Upscale"
+  short_description: "AI-upscale repo images in place"
+  default_prompt: "Use $upscale to AI-upscale the specified repo images in place while preserving originals."
