@@ -1,0 +1,4 @@
+interface:
+  display_name: "Branch Workspace"
+  short_description: "Set and enforce a project working branch"
+  default_prompt: "Use $branch to create and enforce the new-style working branch."
