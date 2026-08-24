@@ -39,12 +39,13 @@ When the user later says something like "commit all these and push" after a non-
 Branch handling must be explicit and conservative:
 
 1. Before the first commit in push mode, run `git branch --show-current` and `git status --short --branch`.
-2. The currently checked out branch is the commit target and the push target by default. Stay on that branch unless the user explicitly asks to create, switch to, or push a different branch.
-3. Never create a new branch proactively for safety, cleanliness, reviewability, or personal preference. If the user is on `main`, then by default you commit on `main` and push `main`.
-4. Never reinterpret ambiguous wording as branch permission. Phrases like "off main", "working off main", "based on main", or "from main" are ambiguous. Do not act on them silently. Restate the exact branch name using the words "on branch `<name>`" and "push `<name>`" before you commit.
-5. In the first push-mode progress update, say exactly which branch you are on and exactly which branch you will push. Example: `I'm on branch main and will commit these buckets on main, then push main.`
-6. If the user explicitly asks a branch question and there is any ambiguity, answer with the literal current branch name and your exact intended push target. Do not answer with loose phrasing like "working off main" or "off main".
-7. If you realize you misread the user's branch intent before pushing, stop and ask instead of inventing a recovery path. Do not quietly move commits to another branch to be "safer".
+2. **Diff ownership is absolute.** Treat every staged, unstaged, and untracked change as belonging to the branch currently checked out in that worktree. Commit and push that diff only on that exact branch.
+3. **Never cross-commit.** Never commit a diff found on a non-`main` branch to `main`, and never commit a diff found on `main` to a non-main branch. Do not switch branches while that diff exists to "put it on" a different branch; stop and ask the user to resolve or clean the owning worktree first.
+4. With a clean worktree, the currently checked out branch is the commit target and push target by default. Never create a new branch proactively for safety, cleanliness, reviewability, or personal preference. If the user is on `main`, then by default you commit on `main` and push `main`.
+5. Never reinterpret ambiguous wording as branch permission. Phrases like "off main", "working off main", "based on main", or "from main" are ambiguous. Do not act on them silently. Restate the exact branch name using the words "on branch `<name>`" and "push `<name>`" before you commit.
+6. In the first push-mode progress update, say exactly which branch owns the diff and exactly which branch you will push. Example: `The diff is on branch main; I will commit these buckets on main, then push main.`
+7. If the user explicitly asks a branch question and there is any ambiguity, answer with the literal current branch name and your exact intended push target. Do not answer with loose phrasing like "working off main" or "off main".
+8. If you realize you misread the user's branch intent before pushing, stop and ask instead of inventing a recovery path. Do not quietly move commits to another branch to be "safer".
 
 ## Bias Toward Smaller Reviewable Buckets
 
@@ -80,11 +81,11 @@ Before the first commit, write a concise bucket plan as a top-level bulleted lis
 
 Create all commits locally first, then verify the whole stack before pushing:
 
-1. Run `git branch --show-current` and `git status --short --branch`. State the exact current branch and exact push target in plain language before you stage anything.
+1. Run `git branch --show-current` and `git status --short --branch`. Record the current branch as the immutable owner of the diff, and state that exact branch and push target in plain language before you stage anything.
 2. Run `git restore --staged .` to clear the index.
 3. Stage only that bucket's files with targeted `git add <path>` commands. Use `git add -p <path>` when only part of a file belongs to the bucket.
 4. Run `git diff --cached --stat`, `git diff --cached --numstat`, and `git diff --cached --shortstat`. Confirm the staged files and changed-line count match one coherent bucket. If the staged diff is over `500` changed lines and does not meet the generated-file exception above, stop and split the bucket before committing. For staged diffs between `400` and `500` changed lines, do one explicit split sanity-check before committing.
-5. Commit with the bucket's suggested commit message.
+5. Immediately before committing, run `git branch --show-current` again. If it is not the branch that owned the diff at step 1, stop; do not commit the bucket on another branch. Otherwise, commit with the bucket's suggested commit message.
 6. Run `git show --stat --oneline HEAD` and confirm the commit title honestly describes the whole staged diff, not just the smallest or most recent fix inside it. If the title is misleading, amend before pushing.
 7. Repeat steps 2-6 for every bucket. Do not push between buckets.
 8. After all commits are created, run `git branch --show-current`, `git status --short`, `git log --oneline --stat <base>..HEAD`, and whatever validation commands are appropriate for the changed areas.
@@ -100,6 +101,7 @@ If any step fails, stop immediately and report the error. Do not continue to lat
 - Never use broad staging commands such as `git add .` or `git add -A`.
 - Prefer the smallest coherent buckets over umbrella commits, but do not invent fake micro-buckets.
 - Do not create, switch, or push a different branch unless the user explicitly asked for that branch behavior.
+- Never switch branches to commit a dirty diff elsewhere: a branch diff must be committed on that branch, and a `main` diff must be committed on `main`.
 - Never include work from tabs that `$check-codex-tabs` reports as active or otherwise in flight.
 
 ## Sample Output
