@@ -1,0 +1,4 @@
+interface:
+  display_name: "Messages Search"
+  short_description: "Search local Messages safely"
+  default_prompt: "Use $messages-search to find messages from a specific person over a limited date range."
