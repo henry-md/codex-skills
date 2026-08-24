@@ -15,6 +15,7 @@ Use this skill when one screenshot is not enough and the job is to first reprodu
    If the repo already has a headless verification harness, that is the default loop.
    Prefer bundled Chromium for unpacked extension verification, and use CDP while staying headless when Playwright alone cannot control the necessary extension targets.
    Do not switch to headed just because the task is iterative.
+   **Identity-sensitive exception:** when the reported behavior depends on the user's signed-in state on a third-party site, authenticated product behavior is the target—not an extension surrogate. Use the user's approved live session (or a saved auth state whose identity is explicitly verified). A harness that intercepts the site, renders a fixture, or is anonymous may support regression testing, but it is never final evidence for that flow.
 
 2. Resolve the target route, success criteria, and feature context.
    If the user invokes `/checks /some-path`, treat that as the page route or URL to check.
@@ -25,6 +26,7 @@ Use this skill when one screenshot is not enough and the job is to first reprodu
    For visual requests, make the metric concrete enough to fail from a screenshot alone. Name the exact visual relationship that must be visible, such as "badges appear in the same text line as the sentence before them" rather than "badges are compact."
    Also name at least one screenshot-visible failure condition before editing, such as "badges start on their own row," "large unused blank space remains," "text overflows its container," or "the wrong route/state is captured."
    If there is no observable success metric, stop and explain the missing verification target instead of entering a fix loop.
+   For signed-in third-party verification, the metric must include the final URL and a screenshot-visible account/product-state marker. If either is absent, mark the run inconclusive rather than inferring success.
 
 3. Reproduce the reported issue before editing anything.
    The first job is verification: use the resolved route, state setup, and `$check` capture flow to make the bug happen in the current environment.
@@ -96,6 +98,7 @@ Use this skill when one screenshot is not enough and the job is to first reprodu
 - Do not stop after one pass just because the code looks correct.
 - Do not declare success until you have inspected a fresh screenshot from the relevant route.
 - Do not include a final screenshot unless you have just inspected it and can state the specific visible reason it passes.
+- Never describe a mocked, intercepted, anonymous, or identity-unverified capture as proof of a signed-in user flow. Label it as synthetic support evidence, or fail the verification and explain what authenticated evidence is missing.
 - Do not stop just because the primary route looks correct if nearby high-impact hypotheses remain unchecked and are cheap to probe.
 - Headless browsers are the default. Use them first, keep using them when possible, and only escalate to a headed browser when the bug is truly about browser chrome, windowing, or focus behavior that headless Chromium plus Playwright/CDP cannot expose.
 - For unpacked extension automation, prefer bundled Chromium over Google Chrome.
@@ -116,6 +119,7 @@ Always end with one of these outcomes:
 
 - Success: include the route checked, whether the Henry session was reused or refreshed, a short summary of what changed, the most important hypotheses or adjacent routes probed, and an inline screenshot preview using Markdown image syntax with the absolute file path.
 - The success response must also include a one-sentence visual verdict for the final screenshot, naming the visible evidence that satisfies the metric.
+- For a signed-in third-party flow, include the observed final URL and the visible account/product-state marker; do not claim success if either could not be captured.
 - Blocked: explain why the request could not be completed, what you verified, and what would need to change for the loop to succeed.
 
 When useful, also mention how many edit/check loops and route/state probes you performed.
