@@ -14,3 +14,6 @@
 # This tree stores per-repo config, notes, screenshots, and auth/session state.
 check/repos/
 repos/
+
+# check-expo private OAuth/debugging secrets
+check-expo/secrets/

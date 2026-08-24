@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check Expo"
+  short_description: "Native Expo app screenshots and diagnostics"
+  default_prompt: "Use $check-expo to verify this Expo app in a native mobile runtime and capture a screenshot."
