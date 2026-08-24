@@ -16,7 +16,9 @@ Use this skill when a site or app must look exactly like an existing public URL.
    - Candidate is usually the local dev server, such as `http://127.0.0.1:3000/`.
 
 2. Normalize the capture environment.
-   - Use the same browser, viewport, device scale, color scheme, locale, waits, and scroll behavior for both URLs.
+   - Use the same browser, viewport, device scale, browser/page zoom, color scheme, locale, waits, and scroll behavior for both URLs.
+   - Treat per-origin browser zoom as a separate failure mode from CSS layout. If a user-provided Chrome screenshot looks uniformly enlarged or shrunken, first check/reset Chrome zoom for each origin (for example `127.0.0.1` can be zoomed independently from the public domain) before tuning CSS.
+   - Inspect the report's zoom diagnostics (`devicePixelRatio` and `visualViewport.scale`) for every viewport. For strict clone work, pass `--fail-on-zoom-mismatch` so mismatched zoom/DPR fails the run instead of producing misleading layout conclusions.
    - Dismiss or mask popups, cookie banners, carousels, embedded videos, timestamps, and other unstable regions.
    - Prefer `domcontentloaded` plus a fixed wait for sites that never reach `networkidle`.
 
@@ -111,6 +113,8 @@ Useful options:
 - Navigation failures are fatal by default; use `--allow-navigation-error` only when intentionally inspecting an error state.
 - Use `--capture-retries N` with `--fail-on-wait-timeout` when a public widget intermittently hydrates into a loading state before eventually rendering the required content.
 - `--max-mismatch 0.5` to return a non-zero exit code when mismatch exceeds the threshold.
+- `--fail-on-zoom-mismatch` to return a non-zero exit code when the reference and candidate report different `devicePixelRatio` or `visualViewport.scale`.
+- `--max-zoom-delta 0.001` to tune the tolerance used by zoom diagnostics and `--fail-on-zoom-mismatch`.
 
 Use `--reference-image-dir` after a successful live reference capture when a public site starts throttling or timing out during iterative clone work. Refresh the live reference again before making final claims whenever the public URL is reachable.
 

@@ -172,6 +172,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--freeze-animations", action="store_true", help="Disable CSS animations/transitions before screenshot capture.")
     parser.add_argument("--threshold", type=int, default=5, help="Per-pixel max RGB delta threshold, 0-255.")
     parser.add_argument("--max-mismatch", type=float, default=None, help="Exit non-zero if mismatch percent exceeds this value.")
+    parser.add_argument("--max-zoom-delta", type=float, default=0.001, help="Allowed delta between reference/candidate DPR and visualViewport scale before reporting a zoom warning.")
+    parser.add_argument("--fail-on-zoom-mismatch", action="store_true", help="Exit non-zero when reference/candidate DPR or visualViewport scale differ by more than --max-zoom-delta.")
     parser.add_argument("--no-dom-audit", action="store_true", help="Skip DOM audit JSON files.")
     parser.add_argument("--screenshot-scale", choices=["css", "device"], default="css")
     parser.add_argument("--background", default=PAD_COLOR, help="Canvas padding color for unequal screenshot sizes.")
@@ -723,6 +725,9 @@ def resolve_clip_box(page: Any, role: str, args: argparse.Namespace) -> tuple[di
     try:
         locator = page.locator(selector).first
         locator.wait_for(state="visible", timeout=max(0, args.wait_for_timeout_ms))
+        # Page screenshots with a clip are limited to the current viewport. Bring
+        # below-the-fold components into view before calculating their clip.
+        locator.scroll_into_view_if_needed(timeout=max(0, args.wait_for_timeout_ms))
         box = locator.bounding_box(timeout=max(0, args.wait_for_timeout_ms))
         if not box:
             raise RuntimeError("visible element has no bounding box")
@@ -1070,6 +1075,53 @@ def image_only_capture(
         "title": None,
         "clicked": [],
         "sourceImage": str(source_path),
+    }
+
+
+def zoom_diagnostics(reference: dict[str, Any], candidate: dict[str, Any], max_delta: float) -> dict[str, Any]:
+    ref_summary = reference.get("domSummary") or {}
+    cand_summary = candidate.get("domSummary") or {}
+    ref_viewport = ref_summary.get("visualViewport") or {}
+    cand_viewport = cand_summary.get("visualViewport") or {}
+
+    def number(value: Any) -> float | None:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    ref_dpr = number(ref_summary.get("devicePixelRatio"))
+    cand_dpr = number(cand_summary.get("devicePixelRatio"))
+    ref_scale = number(ref_viewport.get("scale"))
+    cand_scale = number(cand_viewport.get("scale"))
+    dpr_delta = abs(ref_dpr - cand_dpr) if ref_dpr is not None and cand_dpr is not None else None
+    scale_delta = abs(ref_scale - cand_scale) if ref_scale is not None and cand_scale is not None else None
+    warnings: list[str] = []
+
+    if dpr_delta is None:
+        warnings.append("devicePixelRatio unavailable for one or both pages")
+    elif dpr_delta > max_delta:
+        warnings.append(
+            f"devicePixelRatio differs: reference {ref_dpr:g}, candidate {cand_dpr:g}, delta {dpr_delta:g}"
+        )
+
+    if scale_delta is None:
+        warnings.append("visualViewport.scale unavailable for one or both pages")
+    elif scale_delta > max_delta:
+        warnings.append(
+            f"visualViewport.scale differs: reference {ref_scale:g}, candidate {cand_scale:g}, delta {scale_delta:g}"
+        )
+
+    return {
+        "referenceDevicePixelRatio": ref_dpr,
+        "candidateDevicePixelRatio": cand_dpr,
+        "devicePixelRatioDelta": dpr_delta,
+        "referenceVisualViewportScale": ref_scale,
+        "candidateVisualViewportScale": cand_scale,
+        "visualViewportScaleDelta": scale_delta,
+        "maxAllowedDelta": max_delta,
+        "sameZoom": not warnings,
+        "warnings": warnings,
     }
 
 
@@ -1512,15 +1564,16 @@ def write_reports(report: dict[str, Any], out_dir: Path) -> None:
         f"- Created: {report['createdAt']}",
         f"- Output: `{out_dir}`",
         "",
-        "| Viewport | Ref size | Candidate size | Mismatch | SSIM estimate | Same size |",
-        "| --- | --- | --- | ---: | ---: | --- |",
+        "| Viewport | Ref size | Candidate size | Mismatch | SSIM estimate | Same size | Same zoom |",
+        "| --- | --- | --- | ---: | ---: | --- | --- |",
     ]
     for item in report["viewports"]:
         diff = item["diff"]
+        zoom = item.get("zoomDiagnostics") or {}
         md_lines.append(
             f"| {item['label']} | {diff['referenceSize']['width']}x{diff['referenceSize']['height']} | "
             f"{diff['candidateSize']['width']}x{diff['candidateSize']['height']} | "
-            f"{diff['mismatchPercent']:.4f}% | {diff['ssimEstimate']:.6f} | {diff['sameSize']} |"
+            f"{diff['mismatchPercent']:.4f}% | {diff['ssimEstimate']:.6f} | {diff['sameSize']} | {zoom.get('sameZoom')} |"
         )
     md_lines.append("")
     for item in report["viewports"]:
@@ -1545,8 +1598,20 @@ def write_reports(report: dict[str, Any], out_dir: Path) -> None:
                 "",
                 f"![{item['label']} overlay]({rel(diff['overlayImage'], out_dir)})",
                 "",
+                "Zoom diagnostics:",
+                "",
+                f"- Reference DPR: `{(item.get('zoomDiagnostics') or {}).get('referenceDevicePixelRatio')}`",
+                f"- Candidate DPR: `{(item.get('zoomDiagnostics') or {}).get('candidateDevicePixelRatio')}`",
+                f"- Reference visualViewport.scale: `{(item.get('zoomDiagnostics') or {}).get('referenceVisualViewportScale')}`",
+                f"- Candidate visualViewport.scale: `{(item.get('zoomDiagnostics') or {}).get('candidateVisualViewportScale')}`",
+                f"- Same zoom: `{(item.get('zoomDiagnostics') or {}).get('sameZoom')}`",
+                "",
             ]
         )
+        for warning in (item.get("zoomDiagnostics") or {}).get("warnings", []):
+            md_lines.append(f"- Zoom warning: {warning}")
+        if (item.get("zoomDiagnostics") or {}).get("warnings"):
+            md_lines.append("")
         for zoom in diff.get("zoomArtifacts", []):
             if zoom.get("error"):
                 md_lines.extend([f"### Zoom: {zoom.get('label', '')}", "", f"Error: `{zoom['error']}`", ""])
@@ -1837,6 +1902,8 @@ def main() -> int:
             "colorPickTop": args.color_pick_top,
             "colorPickQuantum": args.color_pick_quantum,
             "freezeAnimations": args.freeze_animations,
+            "maxZoomDelta": args.max_zoom_delta,
+            "failOnZoomMismatch": args.fail_on_zoom_mismatch,
         },
         "viewports": [],
     }
@@ -1865,6 +1932,7 @@ def main() -> int:
                     out_dir,
                     args,
                 )
+            zoom = zoom_diagnostics(reference, candidate, args.max_zoom_delta)
             report["viewports"].append(
                 {
                     "label": spec.label,
@@ -1874,9 +1942,12 @@ def main() -> int:
                     "deviceName": spec.device_name,
                     "reference": reference,
                     "candidate": candidate,
+                    "zoomDiagnostics": zoom,
                     "diff": diff,
                 }
             )
+            for warning in zoom["warnings"]:
+                print(f"Zoom warning for {spec.label}: {warning}", file=sys.stderr, flush=True)
         browser.close()
 
     write_reports(report, out_dir)
@@ -1888,6 +1959,10 @@ def main() -> int:
 
     if args.max_mismatch is not None and worst > args.max_mismatch:
         print(f"Worst mismatch exceeds --max-mismatch {args.max_mismatch:.4f}%", file=sys.stderr)
+        return 2
+    zoom_warning_count = sum(len(item.get("zoomDiagnostics", {}).get("warnings", [])) for item in report["viewports"])
+    if args.fail_on_zoom_mismatch and zoom_warning_count:
+        print(f"Zoom mismatch detected in {zoom_warning_count} diagnostic(s)", file=sys.stderr)
         return 2
     return 0
 
