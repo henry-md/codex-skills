@@ -1,0 +1,4 @@
+interface:
+  display_name: "General"
+  short_description: "Delegate work across Codex tasks"
+  default_prompt: "Use $general to dispatch this request to the best Codex task."
