@@ -1,0 +1,11 @@
+appId: host.exp.Exponent
+---
+# Use when iOS shows the system Photos permission prompt for Expo Go.
+# Other useful labels on recent iOS versions include:
+# - "Limit Access..."
+# - "Allow Full Access"
+# - "Don’t Allow"
+- tapOn: "Allow Full Access"
+- waitForAnimationToEnd
+- takeScreenshot:
+    path: ios-after-allow-photos

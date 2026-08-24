@@ -1,0 +1,8 @@
+appId: host.exp.exponent
+---
+# Copy this into the repo-specific artifacts folder and replace the visible
+# labels with app-specific text. Android can also be driven directly with adb
+# for simple coordinate taps, but Maestro is better for semantic flows.
+- assertVisible: "APP_TITLE_OR_VISIBLE_TEXT"
+- takeScreenshot:
+    path: android-expo-smoke-initial

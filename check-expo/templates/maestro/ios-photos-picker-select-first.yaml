@@ -1,0 +1,10 @@
+appId: host.exp.Exponent
+---
+# Use when the iOS Photos picker is open. This selects the first visible photo
+# in the grid on an iPhone-sized simulator. Verify with screenshots because
+# picker layout can vary by device size and iOS version.
+- tapOn:
+    point: 17%,24%
+- waitForAnimationToEnd
+- takeScreenshot:
+    path: ios-after-select-first-photo

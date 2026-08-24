@@ -1,0 +1,8 @@
+appId: host.exp.Exponent
+---
+# Handles the iOS ASWebAuthenticationSession consent sheet shown by
+# expo-auth-session before opening accounts.google.com.
+- tapOn: "Continue"
+- waitForAnimationToEnd
+- takeScreenshot:
+    path: ios-google-auth-after-ios-consent

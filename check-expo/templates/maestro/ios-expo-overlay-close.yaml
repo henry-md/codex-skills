@@ -1,0 +1,9 @@
+appId: host.exp.Exponent
+---
+# Closes the normal Expo Go developer menu bottom sheet after the first-run
+# tutorial has already been advanced. Coordinate is relative to device screen.
+- tapOn:
+    point: 94%,33%
+- waitForAnimationToEnd
+- takeScreenshot:
+    path: ios-expo-overlay-close

@@ -1,0 +1,14 @@
+appId: host.exp.Exponent
+---
+# Copy this into the repo-specific artifacts folder and replace the visible
+# labels with app-specific text. Prefer semantic taps/assertions first.
+- assertVisible: "APP_TITLE_OR_VISIBLE_TEXT"
+- takeScreenshot:
+    path: ios-expo-smoke-initial
+
+# Example:
+# - tapOn: "Primary Button"
+# - waitForAnimationToEnd
+# - assertVisible: "Expected Result"
+# - takeScreenshot:
+#     path: ios-expo-smoke-after-primary-button
