@@ -92,8 +92,6 @@ Create all commits locally first, then verify the whole stack before pushing:
 10. Push once with `git push` to the branch you explicitly named earlier. Do not switch branches right before pushing unless the user explicitly asked for that branch change.
 11. Report the branch pushed, commit hashes, approximate changed-line count for each pushed commit, validation result, and push result.
 
-If any step fails, stop immediately and report the error. Do not continue to later buckets.
-
 ## Constraints
 
 - Do not stage, commit, or push anything unless the user explicitly asked for `push`.
