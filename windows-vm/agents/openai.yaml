@@ -1,0 +1,4 @@
+interface:
+  display_name: "Windows VM"
+  short_description: "Operate Windows App VMs and retain useful lessons"
+  default_prompt: "Use $windows-vm to complete this task inside my Windows App VM and verify the result there."
