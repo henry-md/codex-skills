@@ -14,3 +14,6 @@
 # This tree stores per-repo config, notes, screenshots, and auth/session state.
 check/repos/
 repos/
+
+# Codex installs and updates its bundled skills separately.
+.system/
