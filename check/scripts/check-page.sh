@@ -96,7 +96,15 @@ if [[ -n "$CHECK_CAPTURE_COMMAND" ]]; then
   export TARGET_INPUT TARGET_URL TARGET_LABEL SHOT_FILE CHECK_STATE_FILE_ABS
   eval "$CHECK_CAPTURE_COMMAND"
 else
-  npx playwright screenshot \
+  PLAYWRIGHT_CMD=(npx playwright)
+  CODEX_RUNTIME_ROOT="${CODEX_RUNTIME_ROOT:-$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies}"
+  if ! command -v playwright >/dev/null 2>&1 && \
+    [[ -f "$CODEX_RUNTIME_ROOT/node/node_modules/playwright/cli.js" ]]; then
+    export NODE_PATH="${NODE_PATH:+$NODE_PATH:}$CODEX_RUNTIME_ROOT/node/node_modules"
+    PLAYWRIGHT_CMD=("$CODEX_RUNTIME_ROOT/node/bin/node" "$CODEX_RUNTIME_ROOT/node/node_modules/playwright/cli.js")
+  fi
+
+  "${PLAYWRIGHT_CMD[@]}" screenshot \
     --browser chromium \
     --full-page \
     --wait-for-timeout 1500 \
