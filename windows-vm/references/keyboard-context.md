@@ -12,7 +12,8 @@ Snapshot: **2026-09-10**, Windows App **11.4.0**, Keychron **Q11 ANSI Knob**, gu
 | Historical Notepad A/S/W | With the **former direct-Right-Control hardware**, physical select-all/save/close passed; guest file contained `TEST PASSED`; VM stayed connected | Not retested successfully after the later transport change |
 | Current console arrows | Standalone console captured Option-Left → Ctrl-Left and Command-Left → Home; user confirmed both registered | Console-event proof only |
 | Current Notepad arrows | Physical Command-Left moved line 1/column 46 → 41 instead of 1; user reports Command skips words and Option does nothing | **Failed; unresolved**, including after PowerToys restart |
-| Remaining shortcuts | Shift-selection variants, redo, tab switching, screenshots, and most ordinary commands are configured or native equivalents | Not individually verified; no blanket pass |
+| Screenshots, retested 2026-09-13 | User reports Q11 Command-Shift-3/4 do nothing; built-in Mac Command-Shift-4 creates a host-only capture | **Failed; unresolved**. Guest Snipping Tool capture and Paint paste worked by mouse; see [screenshots and gestures](screenshots-and-gestures.md) |
+| Remaining shortcuts | Shift-selection variants, redo, tab switching, and most ordinary commands are configured or native equivalents | Not individually verified; no blanket pass |
 
 A selected final line in a multistep exercise did not prove that each movement/selection shortcut worked. Do not override the user's failure report with that screenshot. Full inventory: `outputs/shortcut-test-matrix.md` in the workspace below.
 
@@ -82,7 +83,7 @@ Do not blindly apply these source-reviewed ideas as fixes:
 
 These conclusions came from the installed-version [shortcut handler](https://github.com/microsoft/PowerToys/blob/v0.101.2362.0/src/modules/keyboardmanager/KeyboardManagerEngineLibrary/KeyboardEventHandlers.cpp), [Shortcut.cpp](https://github.com/microsoft/PowerToys/blob/v0.101.2362.0/src/modules/keyboardmanager/common/Shortcut.cpp), and Helpers.cpp linked above.
 
-The remaining physical tests include current-transport A/S/W, copy/cut/paste/find/undo, all navigation/selection directions, redo, browser tabs, and both screenshot captures/destinations. Test Command-T in the intended browser; Notepad tab support/binding was not established for this guest. Screenshots require an actual Windows PNG or bounded selection/clipboard image; Snipping Tool auto-save remains unverified.
+The remaining physical tests include current-transport A/S/W, copy/cut/paste/find/undo, all navigation/selection directions, redo, and browser tabs. Test Command-T in the intended browser; Notepad tab support/binding was not established for this guest. Q11 screenshot shortcuts explicitly failed on 2026-09-13; retry after a meaningful change, not as an untested configuration. The mouse route produced a bounded guest image and verified Paint paste. Snipping Tool auto-save remains unverified.
 
 PowerToys' current profile does not implement Command-Delete line deletion. Stock VIA fixed macros cannot inspect caret/selection or branch on held Shift. Repurposing Windows Fn layer 3 as a Command layer was considered, not applied: it conflicts with existing Fn controls and does not cleanly handle Shift-dependent redo/tab/screenshot outputs. Custom firmware was not flashed.
 
