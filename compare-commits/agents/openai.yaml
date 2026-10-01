@@ -1,0 +1,3 @@
+interface:
+  display_name: "Compare Commits"
+  short_description: "Resolve commit requests and open a temporary Git diff"
