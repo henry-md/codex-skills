@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jev"
+  short_description: "Build with Jev and use local browser and batch tools"
+  default_prompt: "Use $jev to build a typed-decision workflow, classify records, or automate a browser task."
