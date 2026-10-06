@@ -34,3 +34,8 @@ When messages arrive, read [conversation handling](references/conversation.md) f
 For [remote files and attachments](references/files.md), read that reference when requested; folder access requires the other computer's connector. Share local folders only when the user names them. Chat history is shared only when explicitly sent.
 
 Pair timing fields exclude Node startup and model/tool scheduling; the first participant's wait for its peer is included. The secret word verifies this connection and is not an access credential.
+
+## Blocked relay fallback
+
+If pairing fails with HTTP 403 because the corporate proxy blocks the relay, use the [GitHub mailbox](references/ghmail.md) instead of the relay: same chat behavior, github.com transport.
+
