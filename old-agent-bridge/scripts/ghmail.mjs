@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env node
 // GitHub-issue mailbox transport for agent-bridge, for networks that block the Railway relay.
 // One shared issue in a private repo; each message is one comment (JSON body) tagged with its channel.
-// Usage: node ghmail.mjs pair|send|watch --channel N [--from NAME] [--text T|-] [--timeout S]
+// Usage: node ghmail.mjs pair|send|watch --channel N --from NAME [--text T] [--timeout S]
 // Reads use ETag conditional requests: a 304 does not count against the GitHub rate limit.
 import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
@@ -12,11 +12,9 @@ import { join } from 'node:path';
 const REPO = process.env.GHMAIL_REPO ?? 'henry-md/agent-bridge-mailbox';
 const API = 'https://api.github.com';
 const args = Object.fromEntries(process.argv.slice(3).reduce((a, v, i, all) => v.startsWith('--') ? [...a, [v.slice(2), all[i + 1]]] : a, []));
-const cmd = process.argv[2], channel = args.channel;
-// Each chat needs a distinct name; default to its session id so two chats on one machine never collide.
-const me = args.from ?? process.env.CLAUDE_CODE_SESSION_ID ?? process.env.CODEX_THREAD_ID ?? process.env.COMPUTERNAME;
+const cmd = process.argv[2], channel = args.channel, me = args.from;
 if (!['pair', 'send', 'watch'].includes(cmd) || !/^\d{1,64}$/.test(channel ?? '') || !me) {
-  console.error('usage: ghmail.mjs pair|send|watch --channel N [--from NAME] [--text T|-] [--timeout S]'); process.exit(2);
+  console.error('usage: ghmail.mjs pair|send|watch --channel N --from NAME [--text T] [--timeout S]'); process.exit(2);
 }
 const token = process.env.GH_TOKEN ?? execFileSync('gh', ['auth', 'token', '--hostname', 'github.com'], { encoding: 'utf8' }).trim();
 const headers = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'agent-bridge-ghmail' };
@@ -82,7 +80,7 @@ const out = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 
 const issue = await issueNumber();
 const timeoutMs = Number(args.timeout ?? 600) * 1000;
-if (cmd === 'send') out({ sent: true, id: await post(issue, { type: 'msg', text: args.text === '-' ? readFileSync(0, 'utf8').replace(/^﻿/, '').replace(/\r?\n$/, '') : args.text ?? '' }) });
+if (cmd === 'send') out({ sent: true, id: await post(issue, { type: 'msg', text: args.text ?? '' }) });
 else if (cmd === 'watch') { const messages = await waitFor(issue, (m) => m.type === 'msg', timeoutMs); out({ timed_out: !messages.length, messages }); }
 else {
   // Both sides exchange random halves; the secret word is derived from both so each side shows the same word.
