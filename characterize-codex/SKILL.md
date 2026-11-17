@@ -48,4 +48,5 @@ A new skill plus a small fix to an existing skill usually deserves separate buck
 - Never use broad staging commands such as `git add .` or `git add -A`.
 - Never ask for permission to commit or push once this skill has been explicitly invoked.
 - Never create or switch branches as part of this skill.
-- Stop immediately on the first discovery, staging, commit, validation, or push failure and report the blocker clearly.
+- Resolve routine environment and toolchain blockers, accept required setup prompts or licenses for this workflow, and retry the failed step. Report what was resolved and continue without a second confirmation.
+- Ask Henry only when a concrete blocker requires his participation. Explain exactly what he needs to do, and continue any independent work while waiting.
