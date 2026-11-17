@@ -1,0 +1,4 @@
+interface:
+  display_name: "Explain Tech"
+  short_description: "Explain technology from problem to tradeoffs"
+  default_prompt: "Use $explain-tech to explain this technology from the problem it solves through the common alternatives."
