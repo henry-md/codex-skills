@@ -1,11 +1,17 @@
 ---
 name: ports
-description: Maintain Henry's local development port registry. Use when assigning, checking, changing, or documenting localhost ports for projects/apps, especially when starting dev servers, avoiding conflicts between multiple local projects, or reconfiguring frontend/backend ports.
+description: Maintain my port registry for development. Also contains best-practice-guidance for agents using ports. Use mainly when creating a new project (and assigning a port), or using a port as an agent. Can also use when documenting localhost ports or miscellaneous port-related tasks.
 ---
 
-# Ports
+# General
 
 Use this skill as the source of truth for Henry's localhost port assignments.
+
+The main point of this skill is to help avoid port conflicts, so that I can work on any/all combinations of projects at the same time without port conflicts. New ports are created by a random number generator and saved to our durable .md file in this skill for memory, and existing valid ports are saved there as well.
+
+Please be proactive with this skill as well — even if not invoked, you may bring up this skill if (1) you know that the port in this project conflicts with another project, or (2) it is a common default port, like 3000 or 5173.
+
+I also want to use this skill as shorthand for the following reminder: agents should not use the default ports for a project (I'm talking about even the randomly generated ones that are hard-coded in the repo that were created with the guidance of this skill) -- these should be reserved for me, the human user. This way, I can always start the port myself, and have it run indefinitely without it being interrupted by an agent. They can use another randomly generated port on the fly, and check for conflicts with other agents.
 
 ## Registry
 
