@@ -1,9 +1,31 @@
 {
+  "faith deutsch": {
+    "handles": [
+      "(917) 797-5867",
+      "FaithDeutsch@gmail.com",
+      "faith.deutsch@finmarkpartners.com",
+      "faithdeutsch@gmail.com",
+      "owenrdeutsch@icloud.com"
+    ],
+    "learned_at": "2026-11-13T17:12:19+00:00",
+    "name": "Faith Deutsch"
+  },
+  "mom": {
+    "handles": [
+      "1 (917) 797-5867",
+      "1.413.473.7771",
+      "FaithDeutsch@gmail.com",
+      "faith.deutsch@finmarkpartners.com",
+      "faithdeutsch@gmail.com"
+    ],
+    "learned_at": "2026-11-12T05:17:09+00:00",
+    "name": "Mom"
+  },
   "scarlett": {
-    "name": "Scarlett Rose",
     "handles": [
       "+19149248357"
     ],
-    "learned_at": "2026-08-14T21:45:38Z"
+    "learned_at": "2026-08-14T21:45:38Z",
+    "name": "Scarlett Rose"
   }
 }
