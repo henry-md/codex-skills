@@ -1909,7 +1909,9 @@ def main() -> int:
     }
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
+        # Existing image pairs do not need a browser installation.
+        needs_browser = not (args.reference_image_dir and args.candidate_image_dir)
+        browser = playwright.chromium.launch() if needs_browser else None
         all_specs: list[tuple[ViewportSpec, dict[str, Any] | None]] = [(spec, None) for spec in viewport_specs]
         all_specs.extend(device_specs(playwright, args.device))
         for spec, device in all_specs:
@@ -1948,7 +1950,8 @@ def main() -> int:
             )
             for warning in zoom["warnings"]:
                 print(f"Zoom warning for {spec.label}: {warning}", file=sys.stderr, flush=True)
-        browser.close()
+        if browser is not None:
+            browser.close()
 
     write_reports(report, out_dir)
 
