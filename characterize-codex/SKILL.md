@@ -7,7 +7,7 @@ description: Applies the `characterize` push workflow to the fixed git repo at `
 
 Publish changes from `/Users/Henry/.codex/skills`, regardless of the caller's current working directory.
 
-This skill is a thin wrapper around `/Users/Henry/.codex/skills/characterize/SKILL.md`. Before grouping, staging, committing, or pushing, open that file and apply its `push` workflow as the source of truth for bucketing, changed-line accounting, the `2000` line rule, the generated-file exception, commit-message validation, stack verification, output format, and push-once behavior.
+This skill is a thin wrapper around `/Users/Henry/.codex/skills/characterize/SKILL.md`. Before grouping, staging, committing, or pushing, open that file and apply its `push` workflow as the source of truth for bucketing, commit-message validation, stack verification, output format, and push-once behavior.
 
 This skill only overrides the target repo, permission model, branch handling, and skills-repo-specific bucketing hints below. If shared workflow guidance here ever conflicts with `characterize`, follow `characterize`. If repo-safety guidance here conflicts with anything else, follow this skill.
 

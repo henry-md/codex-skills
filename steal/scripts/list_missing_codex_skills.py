@@ -10,7 +10,12 @@ from pathlib import Path
 
 CLAUDE_ROOT = Path.home() / ".claude" / "skills"
 CODEX_ROOT = Path.home() / ".codex" / "skills"
+TENEX_SKILLS_ROOT = (Path.home() / ".tenex" / "skills").resolve()
 CODEX_BUILTIN_PARITY_NAMES = {"skill-creator"}
+CLAUDE_SKILL_ALIASES = {
+    "codebase-doctor": "doctor",
+    "skill-reviewer": "skill-doctor",
+}
 
 
 def normalize(name: str) -> str:
@@ -23,13 +28,39 @@ def normalize(name: str) -> str:
     return name
 
 
-def collect_skill_map(root: Path) -> dict[str, list[Path]]:
+def collect_skill_map(
+    root: Path,
+    aliases: dict[str, str] | None = None,
+    ignored_tenex: set[str] | None = None,
+) -> dict[str, list[Path]]:
     skill_map: dict[str, list[Path]] = {}
     if not root.exists():
         return skill_map
 
-    for skill_md in root.rglob("SKILL.md"):
-        skill_map.setdefault(skill_md.parent.name, []).append(skill_md)
+    pending = [(root, frozenset())]
+    while pending:
+        directory, ancestors = pending.pop()
+        try:
+            canonical = directory.resolve(strict=True)
+            if canonical in ancestors or not directory.is_dir():
+                continue
+            if canonical.is_relative_to(TENEX_SKILLS_ROOT):
+                if ignored_tenex is not None:
+                    ignored_tenex.add((aliases or {}).get(directory.name, directory.name))
+                continue
+            skill_md = directory / "SKILL.md"
+            if skill_md.is_file():
+                name = (aliases or {}).get(directory.name, directory.name)
+                skill_map.setdefault(name, []).append(skill_md)
+            next_ancestors = ancestors | {canonical}
+            pending.extend(
+                (child, next_ancestors)
+                for child in directory.iterdir()
+                if child.name not in {".git", "__pycache__", "node_modules", ".venv", "venv"}
+                and child.is_dir()
+            )
+        except (OSError, RuntimeError):
+            continue
 
     return {
         name: sorted(paths, key=lambda path: str(path))
@@ -80,11 +111,13 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    claude_skills = collect_skill_map(CLAUDE_ROOT)
-    codex_skills = collect_skill_map(CODEX_ROOT)
+    ignored_tenex: set[str] = set()
+    claude_skills = collect_skill_map(CLAUDE_ROOT, CLAUDE_SKILL_ALIASES, ignored_tenex)
+    codex_skills = collect_skill_map(CODEX_ROOT, ignored_tenex=ignored_tenex)
 
     requested = [normalize(skill) for skill in args.skills]
     requested = [skill for skill in requested if skill]
+    requested = [CLAUDE_SKILL_ALIASES.get(skill, skill) for skill in requested]
 
     if requested:
         candidate_names = sorted(
@@ -100,6 +133,7 @@ def main() -> int:
                 skill
                 for skill in requested
                 if skill not in claude_skills and skill not in codex_skills
+                and skill not in ignored_tenex
             }
         )
     else:
@@ -166,6 +200,8 @@ def main() -> int:
         "missing_in_claude": missing_in_claude,
         "present_in_both": present_in_both,
         "ignored_codex_only_builtins": ignored_codex_only_builtins,
+        "ignored_tenex_skills": sorted(ignored_tenex),
+        "excluded_requested_skills": sorted(set(requested) & ignored_tenex),
         "not_found_anywhere": not_found_anywhere,
     }
     print(json.dumps(report, indent=2))

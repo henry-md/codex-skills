@@ -10,6 +10,8 @@ Keep Claude and Codex skills in parity.
 ## Scope
 
 - If the user names one or more skills, normalize those names to kebab-case and sync only that set.
+- Treat Claude's `codebase-doctor` as the counterpart for Codex `doctor`, and Claude's `skill-reviewer` as the counterpart for Codex `skill-doctor`. These names preserve Claude's bundled diagnostics commands; the parity helper recognizes the mappings.
+- Exclude Tenex-managed skills whose source resolves under `~/.tenex/skills`. Henry does not want Tenex skills installed in Codex. Do not mirror them unless he explicitly changes that preference.
 - If the user does not name specific skills, sync the default parity set:
   - every skill under `~/.claude/skills`
   - every top-level custom skill under `~/.codex/skills`
@@ -33,6 +35,8 @@ Read the report as follows:
 - `missing_in_claude`: create Claude skill files from Codex sources
 - `present_in_both`: compare the actual skill docs on both sides and reconcile any capability gaps
 - `not_found_anywhere`: tell the user
+
+The helper follows skill symlinks while avoiding directory cycles and reports excluded Tenex skills separately. Preserve shared source directories; removing an unwanted link does not authorize deleting its target.
 
 Do not stop just because skill names match. If both missing lists are empty, continue by reviewing every `present_in_both` skill in scope. Only stop early when there are no missing skills and the docs already match in functionality.
 
@@ -64,7 +68,7 @@ Do not stop just because skill names match. If both missing lists are empty, con
 ## For Each Skill Missing In Claude
 
 1. Read the source Codex `SKILL.md`.
-2. Create `~/.claude/skills/<skill-name>/SKILL.md`.
+2. Create `~/.claude/skills/<skill-name>/SKILL.md` and carry over reusable scripts or references the workflow needs. Keep runtime captures, installed packages, account state, and credentials out of the mirrored package.
 3. Rewrite it using heavy inspiration from the Codex skill, but adapt it instead of copying it verbatim.
 4. Preserve the original job, workflow, and constraints while translating Codex-specific concepts into Claude slash-command language.
 5. Use Claude frontmatter like:
@@ -91,6 +95,7 @@ Do not stop just because skill names match. If both missing lists are empty, con
 ## Translation Rules
 
 - Match capability, not wording.
+- Exclude `node_modules`, virtual environments, and dependency caches from transfers. Preserve needed package manifests, lockfiles, and requirements files; install dependencies when the skill is used and they are missing.
 - A matching skill name is only the start of the review, not proof that no work is needed.
 - Prefer concise imperative instructions.
 - Keep descriptions explicit enough to trigger well on their home platform.
