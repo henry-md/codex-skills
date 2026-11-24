@@ -21,6 +21,7 @@ Use this skill when a site or app must look exactly like an existing public URL.
    - Inspect the report's zoom diagnostics (`devicePixelRatio` and `visualViewport.scale`) for every viewport. For strict clone work, pass `--fail-on-zoom-mismatch` so mismatched zoom/DPR fails the run instead of producing misleading layout conclusions.
    - Dismiss or mask popups, cookie banners, carousels, embedded videos, timestamps, and other unstable regions.
    - Prefer `domcontentloaded` plus a fixed wait for sites that never reach `networkidle`.
+   - If CSS backgrounds produce unstable pixel differences, preload and decode them, wait two animation frames, then take a warm-up screenshot before the comparison captures.
 
 3. Run the bundled comparer.
 
