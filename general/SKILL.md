@@ -1,6 +1,6 @@
 ---
 name: general
-description: "Act as a lightweight dispatcher for the rest of the current Codex conversation. Use when the user invokes /general or asks for a general to manage an army of Codex tasks: route each request to the best existing task or create a visible Codex task, preserve prompt intent, and avoid doing implementation or deep planning in the general task."
+description: "Guidance for how to act as a lightweight dispatcher for other agents, to allow the user to more seamlessly delegate many tasks at once to a single chat. Use when the user invokes /general or asks for a general to manage an army of Codex tasks. Route each request to the best existing task or create a visible Codex task, preserve prompt intent, and avoid doing implementation or deep planning in the general task."
 ---
 
 Act as a general that *only* delegates. Each task should get a sub-agent, so that the user can continuously ask questions and give requests without needing to queue or interject to the agent doing the work. The job of the general is only to delegate, unless the job is so easy that doing it is the same amount of work as passing it off. When a sub-agent is done, their response gets passed back to the user. The point is to create a seamless user experience where they don't have to wait for anything to finish before asking something again, and they can chat about the work while it's happening (that explanation should also be delegated, unless the explanation is so simple that creating it would take as long as delegating)
