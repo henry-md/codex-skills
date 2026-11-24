@@ -1,0 +1,548 @@
+{
+  "catalogCheckedDate": "2026-11-24",
+  "viewCount": 20,
+  "views": [
+    {
+      "key": "outlook-m365-windows-light",
+      "filename": "outlook-m365-windows-light.png",
+      "deviceId": "pvd_4khhpethbyarsb5z4a354t8er8",
+      "client": "Outlook Microsoft 365, Windows 11",
+      "courierName": "Outlook Microsoft 365 (Windows 11)",
+      "category": "desktop",
+      "app": "outlook_microsoft_365",
+      "platform": null,
+      "platformVersion": null,
+      "os": "windows",
+      "osVersion": "11",
+      "theme": "light",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          44.691,
+          48.516,
+          48.491
+        ],
+        "medianSeconds": 48.491,
+        "minSeconds": 44.691,
+        "maxSeconds": 48.516
+      }
+    },
+    {
+      "key": "outlook-m365-windows-dark",
+      "filename": "outlook-m365-windows-dark.png",
+      "deviceId": "pvd_1d2pt6c7hwbh1rhya0pqs0fpb2",
+      "client": "Outlook Microsoft 365, Windows 11",
+      "courierName": "Outlook Microsoft 365 (Windows 11, dark mode)",
+      "category": "desktop",
+      "app": "outlook_microsoft_365",
+      "platform": null,
+      "platformVersion": null,
+      "os": "windows",
+      "osVersion": "11",
+      "theme": "dark",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          56.643,
+          28.667,
+          70.546
+        ],
+        "medianSeconds": 56.643,
+        "minSeconds": 28.667,
+        "maxSeconds": 70.546
+      }
+    },
+    {
+      "key": "outlook-for-windows-light",
+      "filename": "outlook-for-windows-light.png",
+      "deviceId": "pvd_3h9zsrwbwhaafadh2z2w5vq0ek",
+      "client": "Outlook for Windows, Windows 11",
+      "courierName": "Outlook for Windows (Windows 11)",
+      "category": "desktop",
+      "app": "outlook_for_windows",
+      "platform": null,
+      "platformVersion": null,
+      "os": "windows",
+      "osVersion": "11",
+      "theme": "light",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          50.53,
+          358.47,
+          70.546
+        ],
+        "medianSeconds": 70.546,
+        "minSeconds": 50.53,
+        "maxSeconds": 358.47
+      }
+    },
+    {
+      "key": "outlook-for-windows-dark",
+      "filename": "outlook-for-windows-dark.png",
+      "deviceId": "pvd_76yg8f2pzsarhsp9gvbyn3nmw4",
+      "client": "Outlook for Windows, Windows 11",
+      "courierName": "Outlook for Windows (Windows 11, dark mode)",
+      "category": "desktop",
+      "app": "outlook_for_windows",
+      "platform": null,
+      "platformVersion": null,
+      "os": "windows",
+      "osVersion": "11",
+      "theme": "dark",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          80.495,
+          50.494,
+          70.546
+        ],
+        "medianSeconds": 70.546,
+        "minSeconds": 50.494,
+        "maxSeconds": 80.495
+      }
+    },
+    {
+      "key": "outlook-m365-macos-light",
+      "filename": "outlook-m365-macos-light.png",
+      "deviceId": "pvd_5a0mkkg5w2azqr8sa52e5gxg8e",
+      "client": "Outlook Microsoft 365, macOS 13",
+      "courierName": "Outlook Microsoft 365 (macOS 13)",
+      "category": "desktop",
+      "app": "outlook_microsoft_365",
+      "platform": null,
+      "platformVersion": null,
+      "os": "macos",
+      "osVersion": "13",
+      "theme": "light",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          30.539,
+          24.526,
+          24.488
+        ],
+        "medianSeconds": 24.526,
+        "minSeconds": 24.488,
+        "maxSeconds": 30.539
+      }
+    },
+    {
+      "key": "outlook-m365-macos-dark",
+      "filename": "outlook-m365-macos-dark.png",
+      "deviceId": "pvd_3hvf9sah5samar6tgdm89r954w",
+      "client": "Outlook Microsoft 365, macOS 13",
+      "courierName": "Outlook Microsoft 365 (macOS 13, dark mode)",
+      "category": "desktop",
+      "app": "outlook_microsoft_365",
+      "platform": null,
+      "platformVersion": null,
+      "os": "macos",
+      "osVersion": "13",
+      "theme": "dark",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          30.539,
+          24.526,
+          30.94
+        ],
+        "medianSeconds": 30.539,
+        "minSeconds": 24.526,
+        "maxSeconds": 30.94
+      }
+    },
+    {
+      "key": "outlook-web-light",
+      "filename": "outlook-web-light.png",
+      "deviceId": "pvd_60wzmxv9cjbrbr87w8d7rmrdv9",
+      "client": "Outlook.com, Chrome on Windows 10",
+      "courierName": "Outlook.com (Chrome, Windows 10)",
+      "category": "webmail",
+      "app": "outlook_com",
+      "platform": "chrome",
+      "platformVersion": null,
+      "os": "windows",
+      "osVersion": "10",
+      "theme": "light",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          32.553,
+          46.45,
+          30.94
+        ],
+        "medianSeconds": 32.553,
+        "minSeconds": 30.94,
+        "maxSeconds": 46.45
+      }
+    },
+    {
+      "key": "outlook-web-dark",
+      "filename": "outlook-web-dark.png",
+      "deviceId": "pvd_4s7rvnng7hbjn8eca8npw4b9pq",
+      "client": "Outlook.com, Chrome on Windows 10",
+      "courierName": "Outlook.com (Chrome, Windows 10, dark mode)",
+      "category": "webmail",
+      "app": "outlook_com",
+      "platform": "chrome",
+      "platformVersion": null,
+      "os": "windows",
+      "osVersion": "10",
+      "theme": "dark",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          34.584,
+          50.494,
+          40.523
+        ],
+        "medianSeconds": 40.523,
+        "minSeconds": 34.584,
+        "maxSeconds": 50.494
+      }
+    },
+    {
+      "key": "outlook-ios-light",
+      "filename": "outlook-ios-light.png",
+      "deviceId": "pvd_7v2cve5ja4bw2a47kz892336nz",
+      "client": "Outlook, iPhone 13 / iOS 15",
+      "courierName": "Outlook (iPhone 13, iOS 15)",
+      "category": "mobile",
+      "app": "outlook",
+      "platform": "iphone",
+      "platformVersion": "13",
+      "os": "ios",
+      "osVersion": "15",
+      "theme": "light",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          36.504,
+          24.526,
+          26.435
+        ],
+        "medianSeconds": 26.435,
+        "minSeconds": 24.526,
+        "maxSeconds": 36.504
+      }
+    },
+    {
+      "key": "outlook-ios-dark",
+      "filename": "outlook-ios-dark.png",
+      "deviceId": "pvd_57vbmy7gnyb5n8rzhxsv3t3y8y",
+      "client": "Outlook, iPhone 13 / iOS 15",
+      "courierName": "Outlook (iPhone 13, iOS 15, dark mode)",
+      "category": "mobile",
+      "app": "outlook",
+      "platform": "iphone",
+      "platformVersion": "13",
+      "os": "ios",
+      "osVersion": "15",
+      "theme": "dark",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          34.584,
+          22.488,
+          24.488
+        ],
+        "medianSeconds": 24.488,
+        "minSeconds": 22.488,
+        "maxSeconds": 34.584
+      }
+    },
+    {
+      "key": "gmail-web-light",
+      "filename": "gmail-web-light.png",
+      "deviceId": "pvd_5yvs8k8jv9axkv5xsptpd51mvg",
+      "client": "Gmail.com, Chrome on Windows 10",
+      "courierName": "Gmail.com (Chrome, Windows 10)",
+      "category": "webmail",
+      "app": "gmail_com",
+      "platform": "chrome",
+      "platformVersion": null,
+      "os": "windows",
+      "osVersion": "10",
+      "theme": "light",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          32.553,
+          26.459,
+          30.94
+        ],
+        "medianSeconds": 30.94,
+        "minSeconds": 26.459,
+        "maxSeconds": 32.553
+      }
+    },
+    {
+      "key": "gmail-web-dark",
+      "filename": "gmail-web-dark.png",
+      "deviceId": "pvd_5g5vccak4ea4ybxzyt8cnfsqz7",
+      "client": "Gmail.com, Chrome on Windows 10",
+      "courierName": "Gmail.com (Chrome, Windows 10, dark mode)",
+      "category": "webmail",
+      "app": "gmail_com",
+      "platform": "chrome",
+      "platformVersion": null,
+      "os": "windows",
+      "osVersion": "10",
+      "theme": "dark",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "single-client",
+        "pollIntervalSeconds": 1,
+        "apiReadySeconds": [
+          44.447,
+          47.397,
+          35.432
+        ],
+        "medianSeconds": 44.447,
+        "minSeconds": 35.432,
+        "maxSeconds": 47.397
+      }
+    },
+    {
+      "key": "gmail-ios-light",
+      "filename": "gmail-ios-light.png",
+      "deviceId": "pvd_4m2q1dndn1bftb57vmr1zvf6p0",
+      "client": "Gmail, iPhone 16 / iOS 26",
+      "courierName": "Gmail (iPhone 16, iOS 26)",
+      "category": "mobile",
+      "app": "gmail",
+      "platform": "iphone",
+      "platformVersion": "16",
+      "os": "ios",
+      "osVersion": "26",
+      "theme": "light",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          78.461,
+          48.516,
+          58.566
+        ],
+        "medianSeconds": 58.566,
+        "minSeconds": 48.516,
+        "maxSeconds": 78.461
+      }
+    },
+    {
+      "key": "gmail-ios-dark",
+      "filename": "gmail-ios-dark.png",
+      "deviceId": "pvd_1md3brmzz3bf0s09fbjtgrk2ma",
+      "client": "Gmail, iPhone 16 / iOS 26",
+      "courierName": "Gmail (iPhone 16, iOS 26, dark mode)",
+      "category": "mobile",
+      "app": "gmail",
+      "platform": "iphone",
+      "platformVersion": "16",
+      "os": "ios",
+      "osVersion": "26",
+      "theme": "dark",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          128.464,
+          96.516,
+          54.562
+        ],
+        "medianSeconds": 96.516,
+        "minSeconds": 54.562,
+        "maxSeconds": 128.464
+      }
+    },
+    {
+      "key": "gmail-android-light",
+      "filename": "gmail-android-light.png",
+      "deviceId": "pvd_6qa25njzggbbbs4kf8azs92qn4",
+      "client": "Gmail, Pixel 10 / Android 16",
+      "courierName": "Gmail (Pixel 10, Android 16)",
+      "category": "mobile",
+      "app": "gmail",
+      "platform": "pixel",
+      "platformVersion": "10",
+      "os": "android",
+      "osVersion": "16",
+      "theme": "light",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          38.421,
+          48.516,
+          50.545
+        ],
+        "medianSeconds": 48.516,
+        "minSeconds": 38.421,
+        "maxSeconds": 50.545
+      }
+    },
+    {
+      "key": "gmail-android-dark",
+      "filename": "gmail-android-dark.png",
+      "deviceId": "pvd_02h2ecnn2rbgy9x1eptdr0py9z",
+      "client": "Gmail, Pixel 10 / Android 16",
+      "courierName": "Gmail (Pixel 10, Android 16, dark mode)",
+      "category": "mobile",
+      "app": "gmail",
+      "platform": "pixel",
+      "platformVersion": "10",
+      "os": "android",
+      "osVersion": "16",
+      "theme": "dark",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          40.462,
+          48.516,
+          38.481
+        ],
+        "medianSeconds": 40.462,
+        "minSeconds": 38.481,
+        "maxSeconds": 48.516
+      }
+    },
+    {
+      "key": "apple-mail-macos-light",
+      "filename": "apple-mail-macos-light.png",
+      "deviceId": "pvd_3pt889h8pbbqjtg2dg8y344tq1",
+      "client": "Apple Mail 16, macOS 13",
+      "courierName": "Apple Mail 16 (macOS 13)",
+      "category": "desktop",
+      "app": "apple_mail_16",
+      "platform": null,
+      "platformVersion": null,
+      "os": "macos",
+      "osVersion": "13",
+      "theme": "light",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          34.584,
+          22.488,
+          30.94
+        ],
+        "medianSeconds": 30.94,
+        "minSeconds": 22.488,
+        "maxSeconds": 34.584
+      }
+    },
+    {
+      "key": "apple-mail-macos-dark",
+      "filename": "apple-mail-macos-dark.png",
+      "deviceId": "pvd_7kh7f2y4crbf4sk95c9tcmycf4",
+      "client": "Apple Mail 16, macOS 13",
+      "courierName": "Apple Mail 16 (macOS 13, dark mode)",
+      "category": "desktop",
+      "app": "apple_mail_16",
+      "platform": null,
+      "platformVersion": null,
+      "os": "macos",
+      "osVersion": "13",
+      "theme": "dark",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          34.584,
+          28.667,
+          38.481
+        ],
+        "medianSeconds": 34.584,
+        "minSeconds": 28.667,
+        "maxSeconds": 38.481
+      }
+    },
+    {
+      "key": "apple-mail-ios-light",
+      "filename": "apple-mail-ios-light.png",
+      "deviceId": "pvd_0rk8bz6ywhbydvhfh6xv0bw8ep",
+      "client": "Apple Mail, iPhone 17 / iOS 26",
+      "courierName": "Apple Mail (iPhone 17, iOS 26)",
+      "category": "mobile",
+      "app": "apple_mail",
+      "platform": "iphone",
+      "platformVersion": "17",
+      "os": "ios",
+      "osVersion": "26",
+      "theme": "light",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          36.504,
+          26.459,
+          24.488
+        ],
+        "medianSeconds": 26.459,
+        "minSeconds": 24.488,
+        "maxSeconds": 36.504
+      }
+    },
+    {
+      "key": "apple-mail-ios-dark",
+      "filename": "apple-mail-ios-dark.png",
+      "deviceId": "pvd_36m3f6jvvdb5ntjg4ktpwekqws",
+      "client": "Apple Mail, iPhone 17 / iOS 26",
+      "courierName": "Apple Mail (iPhone 17, iOS 26, dark mode)",
+      "category": "mobile",
+      "app": "apple_mail",
+      "platform": "iphone",
+      "platformVersion": "17",
+      "os": "ios",
+      "osVersion": "26",
+      "theme": "dark",
+      "timing": {
+        "date": "2026-11-24",
+        "context": "20-view batch",
+        "pollIntervalSeconds": 2,
+        "apiReadySeconds": [
+          34.584,
+          26.459,
+          26.435
+        ],
+        "medianSeconds": 26.459,
+        "minSeconds": 26.435,
+        "maxSeconds": 34.584
+      }
+    }
+  ],
+  "benchmarkSourceSHA256": "8dcaae179631c959e4abd0d123d240099ef6f10dff7ae2ce715c736894db1a24",
+  "catalogCountWhenChecked": 108
+}

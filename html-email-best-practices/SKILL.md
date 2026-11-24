@@ -41,10 +41,10 @@ Project structure should look like the following:
 
 `email.html` is the html emailer. `reference.pdf` is the original pdf/img mockups of the emails. `bug-fixes.md` is written documentation of every UI bug found. If addressed, it should have before & after pictures showing a reproduction of the bug, and the fix. We can also choose not to address it, with a justification of why fixing this bug produces comparable or worse bugs in this or other clients. The before & after images should be the same client type (ex Outlook dark mode mobile) that I give Codex when I tell it about the bug.
 
-`email-client-renders/` should contain JUST images taken from Courier, our main email rendering service. email-client-renders should not include any json or other bs. Pictures should be labeled as simply as possible, like 'apple-mail-ios-light.png', 'gmail-ios-dark.png' etc.
+`email-client-renders/` should contain JUST images taken from EmailQA, our hosted email rendering service. email-client-renders should not include any json or other bs. Pictures should be labeled as simply as possible, like 'apple-mail-ios-light.png', 'gmail-ios-dark.png' etc.
 `/context` contains everything else -- the assets in the actual email like logos and images (the `assets/` folder), the original pdf/img mockups of the emails, any instruction files (as .txt), or exact image rgb values given as a file, etc. Essentially all the context necessary to make the emails.
 
-Do NOT over-complicate the folder structure with a bunch of nested folders. Keep a single copy of email-client-renders with simple filenames identifying the client and mode. Keep rendering-service names out of PNG filenames and folders, including Courier. Clients may receive this folder, so the names should describe the email client and mode.
+Do NOT over-complicate the folder structure with a bunch of nested folders. Keep a single copy of email-client-renders with simple filenames identifying the client and mode. Keep rendering-service names out of PNG filenames and folders, including EmailQA. Clients may receive this folder, so the names should describe the email client and mode.
 
 If similar/analogous folders exist, rename & reshuffle to achieve this structure.
 
@@ -56,13 +56,32 @@ If given a pdf to re-create, fucking re-create it EXACTLY. Use /visual-diff and 
 
 Always update the `email-client-renders` folder after edits so that email.html isn't out of sync with it.
 
-Use Courier to render emails. When you've finished a coding pass, tell the user immediately that you've finished, and that the html clients will re-render. Immediately after doing this, rename all existing image previews with '...-old.png' in email-client-renders. As the new emails come in, overwrite those. This way, the user can easily see which have been replaced so far, and which are still old.
 
-Make sure to poll Courier second by second, so that we don't wait on the slowest email clients to update the ones we can. This way, if the user (me) is only looking for certain clients, they can get them asap, rather than waiting for the slowest client.
+Prefer the [local preview workflow](local-preview/GUIDE.md) for focused debugging when Gmail web, Outlook.com web or Apple Mail for Mac reproduces the issue. It provides 2 main advantages over EmailQA for rendering: (1) it's fast. In benchmarks, you get previews in around 3-5 seconds as opposed to 30 seconds - 1 minute for EmailQA. (2) You get access to the DOM! Not just screenshots. This should help a lot with debugging in certain situations, so you can actually see which element is taking some padding we want to delete, for example.
 
-On maintaining my actual account in Courier:
-- Keep one Courier template per actual email, normally corresponding to one local email folder (ex. north-square-1 is a single email template, & project in Courier). Keep revisions and diagnostic variants in that template's preview history. Before creating a template, search Courier for an existing match and inspect likely candidates.
-- Follow the [Courier device-preview docs](https://www.courier.com/docs/design/templates/device-preview). Update the Design Studio template's email channel with the current HTML, select the required email clients and modes, and run a preview through Courier's editor or API. Keep baseline, candidate, and regression previews in the same template.
+(Windows clients in the local preview workflow are not implemented yet for this Mac's local setup, and are deferred until there's 100GB of free memory for a VM download.)
+
+When you've finished a coding pass, tell the user immediately that you've finished, and that the html clients will re-render. Immediately after doing this, rename all existing image previews with '...-old.png' in email-client-renders. As the new emails come in, overwrite those. This way, the user can easily see which have been replaced so far, and which are still old.
+
+### Local edit loop for development & bugs
+
+1. Inspect the existing captures and inspection evidence, checking which HTML revision they represent. Refresh stale or unknown revisions before establishing a bug reproducer. Choose the fastest verified local configuration that reproduces the defect or covers the feature, considering its measured spread; use the [EmailQA benchmark](local-preview/GUIDE.md#saved-code-to-feedback-benchmark) for measured hosted targets and confirm other targets against EmailQA's current client catalog. Follow an explicit client requirement and keep app, platform, device, account type and light/dark mode fixed. For bugs, save current before images in `context/`, covering both the iteration target and the reported target when they differ.
+2. Keep the chosen client open/signed in. Edit and save `email.html`, then run [preview.py](local-preview/preview.py) `prepare --html /absolute/path/to/email.html --clients CLIENT` for a local target. Each edit needs a fresh frozen source and uniquely identified `message.eml`; reuse the authorized setup and helpers between revisions.
+3. Use the chosen client's verified loading route. **Gmail:** [insert the complete message into the test mailbox](local-preview/GUIDE.md#gmail-web) with the existing insertion-only authorization, open the returned native message ID and use `inspectInsertedGmail`. **Outlook.com:** [pass the saved message bytes to `openOutlookEML`](local-preview/GUIDE.md#outlook-web), which invokes Outlook's native file-reading handler, then inspect its popup with `inspectOpenedOutlook`. **Apple Mail:** [open the saved `.eml` through Finder](local-preview/GUIDE.md#apple-mail-for-mac), rebind the Mail app handle and inspect that new window. The tested Outlook automation uses its native drop handler; Finder-to-browser dragging failed here.
+4. Verify the current unique subject/message identity, source hash, loaded assets and complete ending. Inspect only that message's DOM in Gmail/Outlook, using the existing inspectors and Chrome DevTools to locate the cause of the defect. In Mail, use accessibility data and native images. Check the actual defect or feature behavior; a prepared file or successful request alone is insufficient. Repeat source edits and reload only the chosen reproducing client during intermediate iterations.
+5. Before claiming a bug is fixed, reload the current code in the originally reported client/mode, including when it differs from the iteration target, and take an after screenshot. Before/after screenshots from the same client configuration are mandatory: give them to the user and retain them in `context/` for `bug-fixes.md`. Then complete the final client verification below.
+
+### Final client verification
+
+Use a single client for quick iterations. Once the fix or feature works in that target and any originally reported client/mode, render the full agreed client/mode set in EmailQA once to catch regressions. Select targets from EmailQA's current catalog; client IDs and mode availability are provider-specific. Call the render folder current only after all required views have been refreshed, and report any unavailable or failed views.
+
+### Maintaining the EmailQA account
+
+- Keep exactly one EmailQA project per local email project folder under the HTML email workspace. For example, `finmark-emailers/north-square-1/` maps to one EmailQA project named `north-square-1`. Reuse that project across chats, HTML revisions, diagnostic variants and client selections.
+- Before creating a project, check the local `context/` records for its saved EmailQA slug/URL, then search EmailQA's existing projects and inspect likely matches. Record the chosen project's slug/URL and corresponding local folder in `context/` so later agents reuse it. Create a project only when no matching project exists.
+- Upload changed HTML as a new version of that same project. Keep baseline, candidate, diagnostic and regression renders in its version/render history, and submit each render job against the intended version. For final verification, upload the actual current `email.html` and record its source hash, version and render job IDs in `context/`.
+- With the [existing EmailQA integration](/Users/Henry/.codex/integrations/emailqa/render.py), always pass `--project EXISTING_SLUG` after initial project creation. Omitting `--project` creates another project. Select the required client IDs/modes from EmailQA's current catalog and check the included allowance before submitting.
+- Poll intermediate per-client results and download each completed image immediately, even while the overall job is processing. Keep job metadata and timings in `context/`, and place only client/mode-named PNGs in `email-client-renders/`.
 
 ## Compatibility Tips
 
