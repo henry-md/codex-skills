@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Email inspector fixture</title>
+<style>
+  body { margin: 0; font: 16px monospace; }
+  #fixture-email { position: absolute; left: 32px; top: 40px; width: 600px; padding: 20px; box-sizing: border-box; border: 1px solid #aaa; }
+  #copy { width: 180px; line-height: 20px; }
+  #overflow { width: 120px; border: 1px solid; overflow: hidden; }
+  #overflow > div { width: 220px; height: 24px; }
+  #photo { width: 80px; height: 40px; }
+  #broken-email { position: absolute; top: 600px; }
+  #fixture-embedded { position: absolute; top: 700px; }
+</style>
+<aside>UNRELATED_APP_SECRET</aside>
+<div id="fixture-shell" role="application">Application controls</div>
+<div class="duplicate">One</div><div class="duplicate">Two</div>
+<div id="fixture-email">
+  <p id="copy">Alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima.</p>
+  <div id="overflow"><div>Wide content</div></div>
+  <img id="photo" alt="Fixture rectangle" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='20'%3E%3Crect width='40' height='20' fill='blue'/%3E%3C/svg%3E">
+  <a href="https://example.test/path?token=URL_SECRET#private">Fixture link</a>
+  <input type="hidden" value="FORM_SECRET" data-secret="ATTRIBUTE_SECRET">
+</div>
+<div id="broken-email"><img alt="Broken fixture" src="data:image/png;base64,broken"></div>
+<div id="fixture-embedded"><p>Outer content</p><iframe srcdoc="<p>FRAME_SECRET</p>"></iframe></div>
+</html>
