@@ -29,15 +29,18 @@ Make sure the following guides are always fully in your working memory. If any o
 # Workflow
 
 Project structure should look like the following:
-`[root folder]/`
-      `email.html`
-      `reference.pdf`
-      `bug-fixes.md`
-      `context/`
-          `assets/`
-          `source-assets/`
-          README.md (optional)
-      `email-client-renders/`
+
+```text
+[root folder]/
+├── email.html
+├── reference.pdf
+├── bug-fixes.md
+├── context/
+│   ├── assets/
+│   ├── source-assets/
+│   └── README.md (optional)
+└── email-client-renders/
+```
 
 `email.html` is the html emailer. `reference.pdf` is the original pdf/img mockups of the emails. `bug-fixes.md` is written documentation of every UI bug found. If addressed, it should have before & after pictures showing a reproduction of the bug, and the fix. We can also choose not to address it, with a justification of why fixing this bug produces comparable or worse bugs in this or other clients. The before & after images should be the same client type (ex Outlook dark mode mobile) that I give Codex when I tell it about the bug.
 
